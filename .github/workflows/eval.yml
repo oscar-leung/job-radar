@@ -1,0 +1,31 @@
+name: Live eval
+# Manual only — this spends API credits. Run after changing prompts or models.
+on:
+  workflow_dispatch:
+    inputs:
+      compare:
+        description: "Also run the 4-model Batch comparison + faithfulness judge"
+        type: boolean
+        default: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      RESUME_MD: ${{ secrets.RESUME_MD }}
+      LABELS_JSONL: ${{ secrets.LABELS_JSONL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev]"
+      - name: Restore labels (kept out of the public repo)
+        run: printf '%s' "$LABELS_JSONL" > evals/labels.jsonl
+      - run: pytest -m live -v evals/test_live_eval.py
+      - if: ${{ inputs.compare }}
+        run: python evals/compare_models.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: eval-results, path: evals/results/ }

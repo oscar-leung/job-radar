@@ -1,0 +1,23 @@
+[project]
+name = "job-radar"
+version = "0.1.0"
+description = "Daily LLM job-matching agent with a pytest evaluation suite"
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=0.40",
+  "requests>=2.31",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["evals"]
+markers = [
+  "live: calls the real Claude API (costs credits; needs ANTHROPIC_API_KEY)",
+]
+addopts = "-m 'not live'"
+
+[tool.setuptools.packages.find]
+where = ["src"]

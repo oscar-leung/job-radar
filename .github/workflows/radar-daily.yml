@@ -1,0 +1,39 @@
+name: Radar daily
+on:
+  schedule:
+    - cron: "52 14 * * *"   # 7:52 AM Pacific (PDT); shifts to 6:52 AM after DST ends
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Score without writing to Notion"
+        type: boolean
+        default: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e .
+      - name: Run radar
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          RESUME_MD: ${{ secrets.RESUME_MD }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python -m job_radar run --dry-run
+          else
+            python -m job_radar run
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: radar-report
+          path: |
+            reports/
+            costs.csv
+          retention-days: 30

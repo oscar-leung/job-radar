@@ -1,0 +1,32 @@
+# Company job boards to watch. Slugs come from each company's public careers URL:
+#   Greenhouse: boards.greenhouse.io/<slug>   Lever: jobs.lever.co/<slug>   Ashby: jobs.ashbyhq.com/<slug>
+# Starter list only — verify each with:  python -m job_radar check-boards
+# Boards that 404 are skipped with a warning, so a wrong slug never breaks a run.
+greenhouse:
+  - anthropic
+  - scaleai
+  - databricks
+lever:
+  - palantir
+ashby:
+  - openai
+  - cohere
+
+# Free title filter applied before any model call (regex, case-insensitive)
+title_include:
+  - "\\bqa\\b"
+  - "quality"
+  - "\\btest"
+  - "sdet"
+  - "automation"
+  - "evaluat"
+  - "annotat"
+  - "red.?team"
+  - "ai trainer"
+  - "model behavior"
+title_exclude:
+  - "director"
+  - "\\bvp\\b"
+  - "sales"
+  - "account executive"
+  - "recruit"

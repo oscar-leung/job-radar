@@ -1,0 +1,10 @@
+.env
+data/resume.md
+data/seen.json
+reports/
+evals/labels.jsonl
+evals/results/
+costs.csv
+__pycache__/
+*.pyc
+.venv/
