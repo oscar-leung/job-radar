@@ -65,10 +65,15 @@ def test_meter_budget_guard():
 
 
 # --- scoring request shape ------------------------------------------------
-def test_score_params_force_tool_and_cache_system():
+def test_score_params_structured_output_and_cache_system():
     sys_blocks = sc.system_blocks("rubric", "resume text")
     params = sc.score_params("claude-sonnet-5-5", sys_blocks, P())
-    assert params["tool_choice"] == {"type": "tool", "name": "record_fit"}
+    assert "tool_choice" not in params and "tools" not in params
+    schema = params["output_config"]["format"]["schema"]
+    assert params["output_config"]["format"]["type"] == "json_schema"
+    assert schema["additionalProperties"] is False
+    assert "minimum" not in schema["properties"]["fit_score"]
+    assert "maxItems" not in schema["properties"]["bullets"]
     assert params["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert "<resume>" in params["system"][0]["text"]
 
@@ -158,3 +163,16 @@ def test_notion_retries_on_429(monkeypatch):
     monkeypatch.setattr(notion_out.requests, "request", lambda *a, **k: R(next(seq)))
     monkeypatch.setattr(notion_out.time, "sleep", lambda s: None)
     assert notion_out._request("POST", "u").status_code == 200
+
+
+def test_parse_structured_text_normalizes():
+    out = {**SCORE, "fit_score": 140, "fit": "🟢 strong", "bullets": ["a", "b", "c", "d"]}
+    msg = SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text=json.dumps(out))])
+    got = sc.parse_message(msg, "record_fit")
+    assert got["fit_score"] == 100 and got["fit"] == "🟢 Strong" and len(got["bullets"]) == 3
+
+
+def test_refusal_raises():
+    msg = SimpleNamespace(stop_reason="refusal", content=[])
+    with pytest.raises(ValueError):
+        sc.parse_message(msg, "record_fit")

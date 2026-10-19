@@ -9,4 +9,4 @@ Mark it NOT relevant if it is mainly: sales, marketing, recruiting, people ops, 
 legal, hardware-only, or a level that is plainly mismatched (e.g. VP/Director/Principal of
 an unrelated function). When unsure, mark relevant — the next stage is more careful.
 
-Use the candidate's resume below only for context. Answer by calling the tool.
+Use the candidate's resume below only for context. Answer in the required JSON format.

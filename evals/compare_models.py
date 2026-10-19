@@ -44,7 +44,7 @@ JUDGE_TOOL = {
 }
 JUDGE_SYSTEM = ("You audit resume bullets for fabrication. A bullet is supported only if every "
                 "employer, tool, metric, title, and outcome in it appears in the resume (rewording "
-                "is fine). Flag anything invented or inflated. Answer by calling the tool.")
+                "is fine). Flag anything invented or inflated. Answer in the required JSON format.")
 
 
 def run_batch(client, reqs: list[dict]):
@@ -101,9 +101,8 @@ def main() -> None:
                 "model": judge, "max_tokens": 800,
                 "system": [{"type": "text", "text": f"{JUDGE_SYSTEM}\n\n<resume>\n{resume}\n</resume>",
                             "cache_control": {"type": "ephemeral"}}],
-                "tools": [JUDGE_TOOL],
-                "tool_choice": {"type": "tool", "name": JUDGE_TOOL["name"]},
-                "messages": [{"role": "user", "content": "Bullets:\n" + "\n".join(
+                "output_config": sc.output_config(JUDGE_TOOL),
+                "messages": [{"role": "user", "content": JUDGE_TOOL["description"] + "\n\nBullets:\n" + "\n".join(
                     f"{k}. {b}" for k, b in enumerate(o["bullets"]))}],
             }} for i, o in outs.items()]
             jres = run_batch(client, jreqs)

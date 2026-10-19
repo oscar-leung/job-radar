@@ -27,4 +27,4 @@ The candidate's resume is below. Score honestly; an inflated score wastes the ca
 5. If the resume has nothing relevant for a bullet, write a bullet about the closest real
    experience rather than fabricating one.
 
-Answer by calling the tool.
+Answer in the required JSON format.

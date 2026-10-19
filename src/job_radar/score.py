@@ -1,10 +1,13 @@
 """Two-stage LLM matching: cheap relevance filter, then structured fit scoring.
 
-Both stages force a tool call so output is schema-validated JSON, and both put the
-resume + rubric in a cached system block so repeated calls pay ~5% for that prefix.
+Both stages use structured outputs (output_config.format = json_schema), so the reply is
+schema-constrained JSON, and both put the resume + rubric in a cached system block so
+repeated calls pay a fraction for that prefix. (Claude 5.5 models reject forced tool_choice.)
 """
 from __future__ import annotations
 
+import copy
+import json
 from pathlib import Path
 
 from .ingest import Posting
@@ -72,28 +75,84 @@ def posting_message(p: Posting, max_chars: int = 12000) -> str:
     )
 
 
+_UNSUPPORTED = ("minimum", "maximum", "maxItems", "minLength", "maxLength", "multipleOf")
+
+
+def json_schema(tool: dict) -> dict:
+    """Tool input_schema -> structured-output schema: additionalProperties false on every
+    object, unsupported numeric/array constraints moved into descriptions (enforced in _normalize)."""
+    def walk(node):
+        if isinstance(node, dict):
+            notes = []
+            for k in _UNSUPPORTED:
+                if k in node:
+                    notes.append(f"{k} {node.pop(k)}")
+            if node.get("minItems", 0) > 1:
+                notes.append(f"exactly/at least {node.pop('minItems')} items")
+            if notes:
+                node["description"] = (node.get("description", "") + " (" + ", ".join(notes) + ")").strip()
+            if node.get("type") == "object":
+                node["additionalProperties"] = False
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+        return node
+    return walk(copy.deepcopy(tool["input_schema"]))
+
+
+def output_config(tool: dict) -> dict:
+    return {"format": {"type": "json_schema", "schema": json_schema(tool)}}
+
+
+def _canon(value, options):
+    for o in options:
+        if isinstance(value, str) and value.casefold() == o.casefold():
+            return o
+    return value
+
+
+def _normalize(name: str, out: dict) -> dict:
+    """Re-apply constraints structured outputs can't express; fix enum casing."""
+    if name == SCORE_TOOL["name"]:
+        out["fit_score"] = max(0, min(100, int(out.get("fit_score", 0))))
+        out["fit"] = _canon(out.get("fit"), FITS)
+        out["lane"] = _canon(out.get("lane"), LANES)
+        out["location"] = _canon(out.get("location"), LOCATIONS)
+        out["resume_version"] = _canon(out.get("resume_version"), RESUME_VERSIONS)
+        out["reasons"] = list(out.get("reasons", []))[:4]
+        out["gaps"] = list(out.get("gaps", []))[:4]
+        out["bullets"] = list(out.get("bullets", []))[:3]
+    return out
+
+
 def _tool_input(resp, name: str) -> dict:
+    """Read the structured JSON reply (text block); tool_use kept for old batch results."""
+    if getattr(resp, "stop_reason", None) == "refusal":
+        raise ValueError(f"model refused ({name})")
     for block in resp.content:
         if getattr(block, "type", None) == "tool_use" and block.name == name:
-            return dict(block.input)
-    raise ValueError(f"model did not call {name}")
+            return _normalize(name, dict(block.input))
+    for block in resp.content:
+        if getattr(block, "type", None) == "text" and block.text.strip():
+            return _normalize(name, json.loads(block.text))
+    raise ValueError(f"no structured output for {name}")
 
 
 def filter_params(model: str, system: list[dict], p: Posting) -> dict:
     return {
-        "model": model, "max_tokens": 200, "system": system,
-        "tools": [FILTER_TOOL],
-        "tool_choice": {"type": "tool", "name": FILTER_TOOL["name"]},
-        "messages": [{"role": "user", "content": posting_message(p, 4000)}],
+        "model": model, "max_tokens": 400, "system": system,
+        "output_config": output_config(FILTER_TOOL),
+        "messages": [{"role": "user", "content": FILTER_TOOL["description"] + "\n\n" + posting_message(p, 4000)}],
     }
 
 
 def score_params(model: str, system: list[dict], p: Posting) -> dict:
     return {
         "model": model, "max_tokens": 1200, "system": system,
-        "tools": [SCORE_TOOL],
-        "tool_choice": {"type": "tool", "name": SCORE_TOOL["name"]},
-        "messages": [{"role": "user", "content": posting_message(p)}],
+        "output_config": output_config(SCORE_TOOL),
+        "messages": [{"role": "user", "content": SCORE_TOOL["description"] + "\n\n" + posting_message(p)}],
     }
 
 
