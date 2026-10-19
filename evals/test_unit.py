@@ -1,3 +1,4 @@
+import json
 """Offline tests — no API calls, run on every push."""
 from types import SimpleNamespace
 
@@ -110,3 +111,15 @@ def test_precision_recall():
 
 def test_precision_recall_handles_empty():
     assert precision_recall({"tp": 0, "fp": 0, "fn": 0, "tn": 3}) == (0.0, 0.0, 0.0)
+
+
+def test_compact_labels_join_snapshot(tmp_path):
+    from conftest import load_labels
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(json.dumps({"source": "Greenhouse", "company": "c", "external_id": "gh:c:1",
+                                "title": "SDET", "location": "Remote", "url": "u", "description": "d"}) + "\n")
+    labs = tmp_path / "labels.jsonl"
+    labs.write_text('{"external_id": "gh:c:1", "label": "good", "lane": "QA/SDET"}\n'
+                    '{"external_id": "gh:c:missing", "label": "bad"}\n')
+    rows = load_labels(labs, snap)
+    assert len(rows) == 1 and rows[0]["title"] == "SDET" and rows[0]["label"] == "good"
