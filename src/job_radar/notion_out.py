@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import time
 
 import requests
 
@@ -16,6 +17,21 @@ from .ingest import Posting
 log = logging.getLogger(__name__)
 API = "https://api.notion.com/v1"
 VERSION = "2022-06-28"
+
+
+def _request(method: str, url: str, **kw) -> requests.Response:
+    """Notion allows ~3 requests/sec; back off on 429 and 5xx using Retry-After."""
+    for attempt in range(6):
+        r = requests.request(method, url, timeout=30, **kw)
+        if r.status_code == 429 or r.status_code >= 500:
+            wait = float(r.headers.get("Retry-After", 2 ** attempt))
+            log.warning("Notion %s, retrying in %.1fs", r.status_code, wait)
+            time.sleep(min(wait, 30))
+            continue
+        r.raise_for_status()
+        return r
+    r.raise_for_status()
+    return r
 
 
 def _rt(text: str) -> list[dict]:
@@ -68,25 +84,35 @@ class NotionTracker:
             "Notion-Version": VERSION,
             "Content-Type": "application/json",
         }
+        self._ids: set[str] | None = None
+
+    def _load_ids(self) -> set[str]:
+        """One paged pass over rows that have an External ID (instead of a query per posting)."""
+        ids, body = set(), {"filter": {"property": "External ID", "rich_text": {"is_not_empty": True}},
+                            "page_size": 100}
+        while True:
+            data = _request("POST", f"{API}/databases/{self.db}/query", headers=self.h, json=body).json()
+            for row in data.get("results", []):
+                rt = row["properties"].get("External ID", {}).get("rich_text", [])
+                if rt:
+                    ids.add("".join(t.get("plain_text", "") for t in rt))
+            if not data.get("has_more"):
+                return ids
+            body["start_cursor"] = data["next_cursor"]
 
     def exists(self, external_id: str) -> bool:
-        r = requests.post(
-            f"{API}/databases/{self.db}/query", headers=self.h, timeout=30,
-            json={"filter": {"property": "External ID", "rich_text": {"equals": external_id}},
-                  "page_size": 1},
-        )
-        r.raise_for_status()
-        return bool(r.json().get("results"))
+        if self._ids is None:
+            self._ids = self._load_ids()
+        return external_id in self._ids
 
     def add(self, p: Posting, s: dict) -> str:
         run_date = dt.date.today().isoformat()
-        r = requests.post(
-            f"{API}/pages", headers=self.h, timeout=30,
-            json={"parent": {"database_id": self.db},
-                  "properties": build_properties(p, s, run_date),
-                  "children": build_children(s)},
-        )
-        r.raise_for_status()
+        r = _request("POST", f"{API}/pages", headers=self.h,
+                     json={"parent": {"database_id": self.db},
+                           "properties": build_properties(p, s, run_date),
+                           "children": build_children(s)})
+        if self._ids is not None:
+            self._ids.add(p.external_id)
         return r.json().get("url", "")
 
     def backlog(self, limit: int = 200) -> list[dict]:
@@ -105,10 +131,7 @@ class NotionTracker:
         while len(rows) < limit:
             if cursor:
                 body["start_cursor"] = cursor
-            r = requests.post(f"{API}/databases/{self.db}/query", headers=self.h,
-                              json=body, timeout=30)
-            r.raise_for_status()
-            data = r.json()
+            data = _request("POST", f"{API}/databases/{self.db}/query", headers=self.h, json=body).json()
             rows.extend(data.get("results", []))
             if not data.get("has_more"):
                 break
@@ -116,16 +139,12 @@ class NotionTracker:
         return rows[:limit]
 
     def mark_cover_drafted(self, page_id: str, note_md: str) -> None:
-        requests.patch(
-            f"{API}/pages/{page_id}", headers=self.h, timeout=30,
-            json={"properties": {"Cover Letter Status": {"select": {"name": "Drafted"}}}},
-        ).raise_for_status()
+        _request("PATCH", f"{API}/pages/{page_id}", headers=self.h,
+                 json={"properties": {"Cover Letter Status": {"select": {"name": "Drafted"}}}})
         paras = [p for p in note_md.split("\n\n") if p.strip()][:20]
         children = [{"object": "block", "type": "heading_3",
                      "heading_3": {"rich_text": _rt("Radar sweep — cover note draft (review before sending)")}}]
         children += [{"object": "block", "type": "paragraph",
                       "paragraph": {"rich_text": _rt(t)}} for t in paras]
-        requests.patch(
-            f"{API}/blocks/{page_id}/children", headers=self.h, timeout=30,
-            json={"children": children},
-        ).raise_for_status()
+        _request("PATCH", f"{API}/blocks/{page_id}/children", headers=self.h,
+                 json={"children": children})

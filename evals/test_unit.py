@@ -123,3 +123,38 @@ def test_compact_labels_join_snapshot(tmp_path):
                     '{"external_id": "gh:c:missing", "label": "bad"}\n')
     rows = load_labels(labs, snap)
     assert len(rows) == 1 and rows[0]["title"] == "SDET" and rows[0]["label"] == "good"
+
+
+def test_notion_dedupe_loads_ids_once(monkeypatch):
+    from job_radar import notion_out
+    calls = []
+
+    class R:
+        status_code = 200
+        headers = {}
+        def __init__(self, payload): self.payload = payload
+        def json(self): return self.payload
+        def raise_for_status(self): pass
+
+    def fake(method, url, **kw):
+        calls.append(url)
+        row = {"properties": {"External ID": {"rich_text": [{"plain_text": "gh:x:1"}]}}}
+        return R({"results": [row], "has_more": False})
+
+    monkeypatch.setattr(notion_out.requests, "request", fake)
+    t = notion_out.NotionTracker("tok", "db")
+    assert t.exists("gh:x:1") and not t.exists("gh:x:2") and not t.exists("gh:x:3")
+    assert len(calls) == 1
+
+
+def test_notion_retries_on_429(monkeypatch):
+    from job_radar import notion_out
+    seq = iter([429, 200])
+
+    class R:
+        def __init__(self, code): self.status_code, self.headers = code, {"Retry-After": "0"}
+        def raise_for_status(self): pass
+
+    monkeypatch.setattr(notion_out.requests, "request", lambda *a, **k: R(next(seq)))
+    monkeypatch.setattr(notion_out.time, "sleep", lambda s: None)
+    assert notion_out._request("POST", "u").status_code == 200
