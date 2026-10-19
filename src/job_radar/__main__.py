@@ -33,8 +33,17 @@ def cmd_check_boards(settings: Settings) -> None:
             print(f"{'OK ' if n else 'ERR'} {ats:<10} {slug:<20} {n} postings")
 
 
+def _clean_env() -> None:
+    """Pasted secrets often carry stray whitespace or newlines; strip them."""
+    import os
+    for k in ("ANTHROPIC_API_KEY", "NOTION_TOKEN"):
+        if os.getenv(k):
+            os.environ[k] = os.environ[k].strip()
+
+
 def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
     import anthropic
+    _clean_env()
     from .notion_out import NotionTracker
 
     cfg = _companies(settings)

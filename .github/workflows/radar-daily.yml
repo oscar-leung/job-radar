@@ -26,6 +26,9 @@ jobs:
           if [ -n "$missing" ]; then
             echo "::error::Missing repo secrets:$missing — add them at Settings > Secrets and variables > Actions"; exit 1
           fi
+          k="$(printf '%s' "$ANTHROPIC_API_KEY" | tr -d '[:space:]')"
+          case "$k" in sk-ant-api*) ;; *) echo "::error::ANTHROPIC_API_KEY doesn't look like a Claude API key (should start with sk-ant-api). Re-paste only the key itself."; exit 1;; esac
+          case "$NOTION_TOKEN" in ntn_*|secret_*) ;; *) echo "::error::NOTION_TOKEN doesn't look like a Notion integration token (ntn_... or secret_...)."; exit 1;; esac
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }

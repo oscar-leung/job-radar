@@ -30,7 +30,7 @@ class Settings:
     fit_threshold: int = int(os.getenv("RADAR_FIT_THRESHOLD", "70"))
     max_scored: int = int(os.getenv("RADAR_MAX_SCORED", "60"))
     max_run_usd: float = float(os.getenv("RADAR_MAX_RUN_USD", "3.00"))
-    notion_token: str = os.getenv("NOTION_TOKEN", "")
+    notion_token: str = os.getenv("NOTION_TOKEN", "").strip()
     notion_database_id: str = os.getenv(
         "NOTION_DATABASE_ID", "d2c0fa46a231491cbe754cbf5abf272e"
     )
