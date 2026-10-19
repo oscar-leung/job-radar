@@ -13,16 +13,24 @@ jobs:
   radar:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      RESUME_MD: ${{ secrets.RESUME_MD }}
+      REQUIRED: ANTHROPIC_API_KEY NOTION_TOKEN RESUME_MD
     steps:
+      - name: Check secrets are set
+        run: |
+          missing=""
+          for v in ${{ env.REQUIRED }}; do [ -z "${!v}" ] && missing="$missing $v"; done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repo secrets:$missing — add them at Settings > Secrets and variables > Actions"; exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -e .
       - name: Run radar
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          RESUME_MD: ${{ secrets.RESUME_MD }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python -m job_radar run --dry-run

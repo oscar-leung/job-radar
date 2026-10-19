@@ -1,16 +1,50 @@
 # Company job boards to watch. Slugs come from each company's public careers URL:
 #   Greenhouse: boards.greenhouse.io/<slug>   Lever: jobs.lever.co/<slug>   Ashby: jobs.ashbyhq.com/<slug>
-# Starter list only — verify each with:  python -m job_radar check-boards
+# Verified 2026-10-19 (each returned live postings matching the title filter). Re-verify with:  python -m job_radar check-boards
 # Boards that 404 are skipped with a warning, so a wrong slug never breaks a run.
 greenhouse:
   - anthropic
   - scaleai
   - databricks
+  - lucidmotors
+  - waymo
+  - okta
+  - coinbase
+  - lyft
+  - nuro
+  - roblox
+  - cloudflare
+  - reddit
+  - pinterest
+  - verkada
+  - stripe
+  - affirm
+  - instacart
+  - gitlab
+  - samsara
+  - duolingo
+  - discord
+  - planetlabs
+  - xai
+  - robinhood
+  - sofi
+  - chime
+  - toast
+  - mongodb
 lever:
   - palantir
+  - zoox
+  - spotify
 ashby:
   - openai
   - cohere
+  - handshake
+  - perplexity
+  - mercor
+  - snowflake
+  - deepgram
+  - harvey
+  - vanta
 
 # Free title filter applied before any model call (regex, case-insensitive)
 title_include:

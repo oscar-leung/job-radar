@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: job-radar
+Version: 0.1.0
+Summary: Daily LLM job-matching agent with a pytest evaluation suite
+Requires-Python: >=3.11
+Requires-Dist: anthropic>=0.40
+Requires-Dist: requests>=2.31
+Requires-Dist: pyyaml>=6.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
