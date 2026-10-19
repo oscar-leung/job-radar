@@ -142,7 +142,7 @@ def _tool_input(resp, name: str) -> dict:
 
 def filter_params(model: str, system: list[dict], p: Posting) -> dict:
     return {
-        "model": model, "max_tokens": 400, "system": system,
+        "model": model, "max_tokens": 1024, "system": system,
         "output_config": output_config(FILTER_TOOL),
         "messages": [{"role": "user", "content": FILTER_TOOL["description"] + "\n\n" + posting_message(p, 4000)}],
     }
@@ -150,20 +150,34 @@ def filter_params(model: str, system: list[dict], p: Posting) -> dict:
 
 def score_params(model: str, system: list[dict], p: Posting) -> dict:
     return {
-        "model": model, "max_tokens": 1200, "system": system,
+        "model": model, "max_tokens": 3000, "system": system,
         "output_config": output_config(SCORE_TOOL),
         "messages": [{"role": "user", "content": SCORE_TOOL["description"] + "\n\n" + posting_message(p)}],
     }
 
 
+def _call(client, params: dict, name: str):
+    """One call; if the reply hit max_tokens (truncated JSON), retry once with double room.
+    Returns (parsed, [usage, ...]) so every attempt is metered."""
+    usages = []
+    for attempt in range(2):
+        resp = client.messages.create(**params)
+        usages.append(resp.usage)
+        if getattr(resp, "stop_reason", None) == "max_tokens" and attempt == 0:
+            params = {**params, "max_tokens": params["max_tokens"] * 2}
+            continue
+        return _tool_input(resp, name), usages
+    return _tool_input(resp, name), usages
+
+
 def is_relevant(client, model: str, system: list[dict], p: Posting):
-    resp = client.messages.create(**filter_params(model, system, p))
-    return _tool_input(resp, FILTER_TOOL["name"]), resp.usage
+    out, usages = _call(client, filter_params(model, system, p), FILTER_TOOL["name"])
+    return out, usages
 
 
 def score(client, model: str, system: list[dict], p: Posting):
-    resp = client.messages.create(**score_params(model, system, p))
-    return _tool_input(resp, SCORE_TOOL["name"]), resp.usage
+    out, usages = _call(client, score_params(model, system, p), SCORE_TOOL["name"])
+    return out, usages
 
 
 def parse_message(message, name: str) -> dict:

@@ -62,19 +62,26 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
     f_sys = sc.system_blocks(sc.load_prompt(settings.prompts_dir, "filter_rubric.md"), resume)
     s_sys = sc.system_blocks(sc.load_prompt(settings.prompts_dir, "scoring_rubric.md"), resume)
 
-    results, scored = [], 0
+    results, scored, skipped = [], 0, 0
     for p in pre:
         if meter.over_budget:
             log.warning("budget $%.2f reached — stopping", settings.max_run_usd)
             break
         if scored >= cap:
             break
-        rel, usage = sc.is_relevant(client, settings.model_filter, f_sys, p)
-        meter.add(settings.model_filter, usage)
-        if not rel["relevant"]:
+        try:
+            rel, usages = sc.is_relevant(client, settings.model_filter, f_sys, p)
+            for u in usages:
+                meter.add(settings.model_filter, u)
+            if not rel["relevant"]:
+                continue
+            s, usages = sc.score(client, settings.model_score, s_sys, p)
+            for u in usages:
+                meter.add(settings.model_score, u)
+        except (ValueError, KeyError, TypeError) as e:
+            skipped += 1
+            log.warning("skipped %s (%s): %s", p.external_id, p.title, e)
             continue
-        s, usage = sc.score(client, settings.model_score, s_sys, p)
-        meter.add(settings.model_score, usage)
         scored += 1
         row = {"posting": p.to_dict(), "score": s, "notion_url": None}
         if tracker and s["fit_score"] >= settings.fit_threshold:
@@ -84,7 +91,7 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
     _write_report(settings, results, meter, len(postings), len(pre))
     meter.log(settings.costs_path, "run-dry" if dry_run else "run")
     hits = sum(r["score"]["fit_score"] >= settings.fit_threshold for r in results)
-    print(f"scored={scored} matches>={settings.fit_threshold}: {hits} cost=${meter.spent:.4f}")
+    print(f"scored={scored} skipped={skipped} matches>={settings.fit_threshold}: {hits} cost=${meter.spent:.4f}")
 
 
 def _write_report(settings, results, meter, fetched, prefiltered) -> None:

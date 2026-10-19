@@ -176,3 +176,22 @@ def test_refusal_raises():
     msg = SimpleNamespace(stop_reason="refusal", content=[])
     with pytest.raises(ValueError):
         sc.parse_message(msg, "record_fit")
+
+
+def test_truncated_reply_retried_with_more_room():
+    calls = []
+    good = json.dumps({"relevant": True, "reason": "QA role"})
+
+    class Client:
+        class messages:
+            @staticmethod
+            def create(**kw):
+                calls.append(kw["max_tokens"])
+                if len(calls) == 1:
+                    return SimpleNamespace(stop_reason="max_tokens", usage={},
+                                           content=[SimpleNamespace(type="text", text='{"relevant": true, "reason": "QA')])
+                return SimpleNamespace(stop_reason="end_turn", usage={},
+                                       content=[SimpleNamespace(type="text", text=good)])
+
+    out, usages = sc.is_relevant(Client, "claude-haiku-5-5", sc.system_blocks("r", "cv"), P())
+    assert out["relevant"] is True and len(usages) == 2 and calls[1] == 2 * calls[0]

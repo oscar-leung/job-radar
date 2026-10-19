@@ -32,8 +32,9 @@ def test_scorer_matches_hand_labels(labels, live_client):
     for lab in labels:
         p = Posting(**{k: lab[k] for k in
                        ("source", "company", "external_id", "title", "location", "url", "description")})
-        out, usage = sc.score(live_client, s.model_score, system, p)
-        meter.add(s.model_score, usage)
+        out, usages = sc.score(live_client, s.model_score, system, p)
+        for u in usages:
+            meter.add(s.model_score, u)
         gold.append(lab["label"] == "good")
         pred.append(out["fit_score"] >= s.fit_threshold)
         rows.append({"id": p.external_id, "gold": lab["label"], "score": out["fit_score"],
