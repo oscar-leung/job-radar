@@ -8,6 +8,15 @@ on:
         description: "Score without writing to Notion"
         type: boolean
         default: false
+      max_scored:
+        description: "Max postings to score this run"
+        default: "60"
+      max_usd:
+        description: "Hard spend cap for this run (USD)"
+        default: "3.00"
+      fit_threshold:
+        description: "Min fit score (0-100) to file in Notion"
+        default: "70"
 
 jobs:
   radar:
@@ -18,6 +27,9 @@ jobs:
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       RESUME_MD: ${{ secrets.RESUME_MD }}
       REQUIRED: ANTHROPIC_API_KEY NOTION_TOKEN RESUME_MD
+      RADAR_MAX_SCORED: ${{ inputs.max_scored || '60' }}
+      RADAR_MAX_RUN_USD: ${{ inputs.max_usd || '3.00' }}
+      RADAR_FIT_THRESHOLD: ${{ inputs.fit_threshold || '70' }}
     steps:
       - name: Check secrets are set
         run: |
