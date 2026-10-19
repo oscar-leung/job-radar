@@ -20,6 +20,9 @@ from . import score as sc
 
 log = logging.getLogger("job_radar")
 
+# Where Oscar will actually work: remote, Davis/Sacramento/Yolo commute, or Bay Area (hybrid).
+IN_AREA = {"Remote-US", "Davis", "Sacramento", "Yolo", "Bay Area"}
+
 
 def _companies(settings: Settings) -> dict:
     return yaml.safe_load(settings.companies_path.read_text())
@@ -84,13 +87,15 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
             continue
         scored += 1
         row = {"posting": p.to_dict(), "score": s, "notion_url": None}
-        if tracker and s["fit_score"] >= settings.fit_threshold:
+        in_area = s.get("location") in IN_AREA
+        if tracker and in_area and s["fit_score"] >= settings.fit_threshold:
             row["notion_url"] = tracker.add(p, s)
         results.append(row)
 
     _write_report(settings, results, meter, len(postings), len(pre))
     meter.log(settings.costs_path, "run-dry" if dry_run else "run")
-    hits = sum(r["score"]["fit_score"] >= settings.fit_threshold for r in results)
+    hits = sum(r["score"]["fit_score"] >= settings.fit_threshold and r["score"].get("location") in IN_AREA
+               for r in results)
     print(f"scored={scored} skipped={skipped} matches>={settings.fit_threshold}: {hits} cost=${meter.spent:.4f}")
 
 
