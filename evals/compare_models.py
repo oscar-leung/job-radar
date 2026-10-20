@@ -92,7 +92,11 @@ def main() -> None:
             if not r or r.type != "succeeded":
                 continue
             meter.add(model, r.message.usage, batch=True)
-            o = sc.parse_message(r.message, "record_fit")
+            try:
+                o = sc.parse_message(r.message, "record_fit")
+            except ValueError as e:  # truncated or refused reply: skip, don't abort the run
+                print(f"  [{model}] p{i} unparseable: {e}")
+                continue
             outs[i] = o
             gold.append(lab["label"] == "good")
             pred.append(o["fit_score"] >= s.fit_threshold)
@@ -104,7 +108,7 @@ def main() -> None:
         if not a.no_judge:
             jm = CostMeter(budget_usd=1e9)
             jreqs = [{"custom_id": f"j{i}", "params": {
-                "model": judge, "max_tokens": 800,
+                "model": judge, "max_tokens": 2500,
                 "system": [{"type": "text", "text": f"{JUDGE_SYSTEM}\n\n<resume>\n{resume}\n</resume>",
                             "cache_control": {"type": "ephemeral"}}],
                 "output_config": sc.output_config(JUDGE_TOOL),
@@ -117,7 +121,12 @@ def main() -> None:
                 if r.type != "succeeded":
                     continue
                 jm.add(judge, r.message.usage, batch=True)
-                for v in sc.parse_message(r.message, JUDGE_TOOL["name"])["verdicts"]:
+                try:
+                    verdicts = sc.parse_message(r.message, JUDGE_TOOL["name"])["verdicts"]
+                except ValueError as e:
+                    print(f"  judge reply unparseable: {e}")
+                    continue
+                for v in verdicts:
                     total += 1
                     supported += bool(v["supported"])
             row["faithfulness"] = supported / total if total else None
