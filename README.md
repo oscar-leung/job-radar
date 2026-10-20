@@ -87,7 +87,7 @@ numbers to be somewhat lower.
 | **Opus 5.5** | 0.76 | 0.83 | **0.79** | **90%** | $0.87 |
 | Fable 5.1 | **0.83** | 0.71 | 0.77 | 79% | $2.83 |
 
-- **Opus** is the daily scorer: best F1 and the most faithful bullets, at about 1.5¢ a posting.
+- **Opus** is the daily scorer: best F1 and the most faithful bullets, at about 1.5¢ a posting (batch price; about 3¢ in the daily run).
 - **Haiku** nearly matches it at 1/36th the cost, the right fallback if volume grows.
 - **The biggest model isn't the best here:** Fable had the highest precision but the least faithful
   bullets and cost 3× Opus.
