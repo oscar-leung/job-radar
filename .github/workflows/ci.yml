@@ -12,3 +12,13 @@ jobs:
         with: { python-version: "3.12" }
       - run: pip install -e ".[dev]"
       - run: pytest -q   # offline tests only (live evals are opt-in)
+
+  labeleval:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: labeleval } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e .
+      - run: pytest -q tests examples -m "not llm_eval"

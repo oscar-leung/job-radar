@@ -95,6 +95,13 @@ numbers to be somewhat lower.
   resume. Even the best model invents something in about 1 bullet in 10, which is why every
   bullet lands in Notion marked "verify before use".
 
+## labeleval: the eval toolkit, reusable
+
+The grading code grew into its own package, [`labeleval/`](labeleval/): a pytest plugin and
+CLI for grading any LLM (or any scorer) against human labels, with threshold sweeps,
+bootstrap confidence intervals, model comparison tables and a misses list. It has its own
+tests, a synthetic ticket-triage example, and the Job Radar numbers above with error bars.
+
 ## Run it
 
 ```bash

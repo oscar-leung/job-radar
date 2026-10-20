@@ -1,0 +1,34 @@
+{"id": "t01", "text": "Checkout page returns 500 for every customer since the 2pm deploy"}
+{"id": "t02", "text": "Can you add dark mode to the dashboard?"}
+{"id": "t03", "text": "Login fails for all SSO users, entire sales team locked out"}
+{"id": "t04", "text": "Typo on the pricing page: 'anual' should be 'annual'"}
+{"id": "t05", "text": "Payments are being charged twice for some orders"}
+{"id": "t06", "text": "How do I export my data to CSV?"}
+{"id": "t07", "text": "API latency is 30s and timing out for our integration"}
+{"id": "t08", "text": "Feature request: keyboard shortcuts in the editor"}
+{"id": "t09", "text": "Data from yesterday is missing from all reports"}
+{"id": "t10", "text": "The logo looks slightly blurry on retina screens"}
+{"id": "t11", "text": "Urgent: please update my billing address before next invoice"}
+{"id": "t12", "text": "Mobile app crashes on launch after the latest update"}
+{"id": "t13", "text": "Could you resend my onboarding email?"}
+{"id": "t14", "text": "Security: I can see another company's invoices in my account"}
+{"id": "t15", "text": "Is there a discount for nonprofits?"}
+{"id": "t16", "text": "Webhooks stopped firing about an hour ago"}
+{"id": "t17", "text": "URGENT!!! love the new release, great job team"}
+{"id": "t18", "text": "Password reset emails are not arriving for anyone"}
+{"id": "t19", "text": "Can I change my username?"}
+{"id": "t20", "text": "Search returns no results for any query"}
+{"id": "t21", "text": "Minor: tooltip overlaps the button on small screens"}
+{"id": "t22", "text": "Our nightly sync job fails with a permissions error since this morning"}
+{"id": "t23", "text": "Please add a Spanish translation"}
+{"id": "t24", "text": "File uploads over 1MB fail silently, customers losing work"}
+{"id": "t25", "text": "What are your support hours?"}
+{"id": "t26", "text": "Critical: production database read replica is down"}
+{"id": "t27", "text": "Requesting a copy of our contract"}
+{"id": "t28", "text": "Notifications are delayed by a few minutes sometimes"}
+{"id": "t29", "text": "SAML certificate expires tonight and rotation is failing"}
+{"id": "t30", "text": "Can you recommend best practices for dashboards?"}
+{"id": "t31", "text": "All good now, yesterday's outage is resolved, thanks!"}
+{"id": "t32", "text": "Every Monday I get the weekly digest, can I turn it off?"}
+{"id": "t33", "text": "Several users say invoice PDFs open blank since this morning"}
+{"id": "t34", "text": "Our checkout conversion dropped 40% today, something is off"}

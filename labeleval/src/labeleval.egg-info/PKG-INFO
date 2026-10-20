@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: labeleval
+Version: 0.1.0
+Summary: Grade an LLM against human labels: precision/recall, threshold sweeps, bootstrap CIs, model comparison, as a pytest plugin
+Author: Oscar Leung
+License: MIT
+Keywords: llm,evaluation,pytest,precision,recall,qa
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pytest>=7

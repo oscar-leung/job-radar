@@ -1,0 +1,5 @@
+[console_scripts]
+labeleval = labeleval.cli:main
+
+[pytest11]
+labeleval = labeleval.plugin

@@ -1,0 +1,13 @@
+pyproject.toml
+src/labeleval/__init__.py
+src/labeleval/cli.py
+src/labeleval/core.py
+src/labeleval/metrics.py
+src/labeleval/plugin.py
+src/labeleval.egg-info/PKG-INFO
+src/labeleval.egg-info/SOURCES.txt
+src/labeleval.egg-info/dependency_links.txt
+src/labeleval.egg-info/entry_points.txt
+src/labeleval.egg-info/requires.txt
+src/labeleval.egg-info/top_level.txt
+tests/test_labeleval.py

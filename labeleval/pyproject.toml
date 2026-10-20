@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "labeleval"
+version = "0.1.0"
+description = "Grade an LLM against human labels: precision/recall, threshold sweeps, bootstrap CIs, model comparison, as a pytest plugin"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Oscar Leung" }]
+dependencies = ["pytest>=7"]
+keywords = ["llm", "evaluation", "pytest", "precision", "recall", "qa"]
+
+[project.scripts]
+labeleval = "labeleval.cli:main"
+
+[project.entry-points.pytest11]
+labeleval = "labeleval.plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
