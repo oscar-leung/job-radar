@@ -17,7 +17,7 @@ and uses a judge model to catch any bullet that claims experience I don't have.
 
 ```
 ATS APIs ──► title regex (free) ──► Haiku 5.5 relevance ──► Sonnet 5.5 fit score ──► Notion
-                                     (forced tool call)      (structured JSON,          (dedupe on
+                                     (JSON schema output)    (JSON schema output,       (dedupe on
                                                               cached resume prefix)      External ID)
 ```
 
@@ -25,9 +25,34 @@ ATS APIs ──► title regex (free) ──► Haiku 5.5 relevance ──► So
 |---|---|
 | Regex on titles | Drops most postings before any model call, at zero cost |
 | Haiku relevance filter | Cheap yes/no, generous by design |
-| Sonnet fit scoring | 0–100 score, fit band, lane, location, gaps, 3 bullets — schema-enforced via forced tool use |
+| Sonnet fit scoring | 0–100 score, fit band, lane, location, gaps, 3 bullets — schema-enforced via structured outputs |
+| Location gate | Only files roles in my work area (remote US, Davis/Sacramento, Bay Area) |
 | Prompt caching | Resume + rubric is a shared prefix; cache reads cost a fraction of normal input |
 | Cost meter | Every call is priced from `usage`; a hard per-run budget stops the run |
+
+## First live run (Oct 19, 2026)
+
+| Stage | Count |
+|---|---|
+| Postings pulled from 40 company boards | 10,632 |
+| Passed the free title filter | 249 |
+| Passed the Haiku relevance screen and fully scored | 145 |
+| Filed to the tracker (fit ≥ 60) | 17 |
+| **Total API cost** | **$1.63** |
+
+The free regex filter removed about 98% of postings before any model call; the cheap
+Haiku screen removed another 42% of what was left.
+
+### What broke on the way to production, and the fix
+
+| Failure | Cause | Fix |
+|---|---|---|
+| Notion `429 Too Many Requests` | Dedupe made one query per posting (~250) | Load existing IDs in one paged pass; retry with `Retry-After` |
+| `400 tool_choice … not supported` | Claude 5.5 models reject forced tool calls | Moved to structured outputs (`output_config.format`, JSON schema) |
+| `JSONDecodeError: Unterminated string` | A reply hit `max_tokens` mid-JSON | Detect `stop_reason == "max_tokens"`, retry once with double room; one bad posting is skipped, not fatal |
+| `401 invalid x-api-key` | Wrong key pasted into the repo secret | Preflight step names a missing or malformed secret before any spend |
+
+Each fix ships with a unit test (24 offline tests).
 
 ## Evaluation
 
