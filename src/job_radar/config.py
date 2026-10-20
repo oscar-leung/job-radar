@@ -41,6 +41,7 @@ class Settings:
     costs_path: Path = ROOT / "costs.csv"
     seen_path: Path = Path(os.getenv("RADAR_SEEN_PATH", ROOT / "data" / "seen.json"))
     seen_days: int = int(os.getenv("RADAR_SEEN_DAYS", "30"))
+    workers: int = int(os.getenv("RADAR_WORKERS", "6"))
 
 
 def load_resume(settings: Settings) -> str:

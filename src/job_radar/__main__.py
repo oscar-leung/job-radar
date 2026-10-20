@@ -13,6 +13,7 @@ import json
 import logging
 
 import yaml
+from concurrent.futures import ThreadPoolExecutor
 
 from .config import Settings, load_resume
 from .cost import CostMeter
@@ -95,33 +96,49 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
     f_sys = sc.system_blocks(sc.load_prompt(settings.prompts_dir, "filter_rubric.md"), resume)
     s_sys = sc.system_blocks(sc.load_prompt(settings.prompts_dir, "scoring_rubric.md"), resume)
 
+    def assess(p):
+        """Filter then score one posting. Returns (posting, score|None, usages, error)."""
+        usages = []
+        try:
+            rel, u = sc.is_relevant(client, settings.model_filter, f_sys, p)
+            usages += [(settings.model_filter, x) for x in u]
+            if not rel["relevant"]:
+                return p, None, usages, None
+            s, u = sc.score(client, settings.model_score, s_sys, p)
+            usages += [(settings.model_score, x) for x in u]
+            return p, s, usages, None
+        except (ValueError, KeyError, TypeError) as e:
+            return p, None, usages, e
+
     results, scored, skipped = [], 0, 0
-    for p in pre:
+    workers = settings.workers
+    queue = pre[:cap]
+    for i in range(0, len(queue), workers * 4):
         if meter.over_budget:
             log.warning("budget $%.2f reached — stopping", settings.max_run_usd)
             break
-        if scored >= cap:
-            break
-        try:
-            rel, usages = sc.is_relevant(client, settings.model_filter, f_sys, p)
-            for u in usages:
-                meter.add(settings.model_filter, u)
-            if not rel["relevant"]:
-                seen[p.external_id] = today
+        chunk = queue[i:i + workers * 4]
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            outcomes = list(ex.map(assess, chunk))
+        for p, s, usages, err in outcomes:
+            for model, u in usages:
+                meter.add(model, u)
+            if err is not None:
+                skipped += 1
+                log.warning("skipped %s (%s): %s", p.external_id, p.title, err)
                 continue
-            s, usages = sc.score(client, settings.model_score, s_sys, p)
-            for u in usages:
-                meter.add(settings.model_score, u)
-        except (ValueError, KeyError, TypeError) as e:
-            skipped += 1
-            log.warning("skipped %s (%s): %s", p.external_id, p.title, e)
-            continue
-        scored += 1
-        seen[p.external_id] = today
-        row = {"posting": p.to_dict(), "score": s, "notion_url": None}
-        if tracker and in_area(s) and s["fit_score"] >= settings.fit_threshold:
-            row["notion_url"] = tracker.add(p, s)
-        results.append(row)
+            seen[p.external_id] = today
+            if s is None:
+                continue
+            scored += 1
+            row = {"posting": p.to_dict(), "score": s, "notion_url": None}
+            if tracker and in_area(s) and s["fit_score"] >= settings.fit_threshold:
+                row["notion_url"] = tracker.add(p, s)
+            results.append(row)
+        if not dry_run:  # save progress so a timeout or crash doesn't re-bill the same postings
+            save_seen(settings.seen_path, seen)
+        log.info("progress %d/%d scored=%d cost=$%.2f", min(i + len(chunk), len(queue)),
+                 len(queue), scored, meter.spent)
 
     if not dry_run:
         save_seen(settings.seen_path, seen)

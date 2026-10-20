@@ -256,3 +256,33 @@ def test_fetch_jd_greenhouse(monkeypatch):
         def json(self): return {"content": "&lt;p&gt;Build pytest suites&lt;/p&gt;"}
     monkeypatch.setattr(kits.requests, "get", lambda url, **k: R())
     assert "Build pytest suites" in kits.fetch_jd("gh:acme:123")
+
+
+def test_run_loop_parallel_saves_progress(tmp_path, monkeypatch):
+    """cmd_run with fake APIs: filters, scores in parallel, files only in-area matches, saves seen."""
+    import sys, types
+    from job_radar import __main__ as m
+    monkeypatch.setitem(sys.modules, "anthropic", types.SimpleNamespace(Anthropic=lambda: object()))
+    posts = [P(external_id=f"gh:x:{i}", title="SDET", location="Remote") for i in range(10)]
+    monkeypatch.setattr(m, "fetch_all", lambda cfg: posts)
+    monkeypatch.setattr(m, "load_resume", lambda s: "cv")
+    monkeypatch.setattr(m, "_companies", lambda s: {"greenhouse": ["x"]})
+    monkeypatch.setattr(m.sc, "is_relevant", lambda c, mo, sy, p: ({"relevant": p.external_id != "gh:x:0"}, [{}]))
+    def fake_score(c, mo, sy, p):
+        i = int(p.external_id.rsplit(":", 1)[1])
+        return {**SCORE, "fit_score": 40 + i * 5, "location": "Remote-US" if i % 2 else "Other"}, [{}]
+    monkeypatch.setattr(m.sc, "score", fake_score)
+    filed = []
+    class T:
+        def __init__(self, *a): pass
+        def exists(self, x): return False
+        def add(self, p, s): filed.append(p.external_id); return "url"
+    import job_radar.notion_out as no
+    monkeypatch.setattr(no, "NotionTracker", T)
+    s = m.Settings()
+    for k, v in dict(seen_path=tmp_path / "seen.json", reports_dir=tmp_path, costs_path=tmp_path / "c.csv",
+                     workers=3, fit_threshold=50, max_scored=100).items():
+        object.__setattr__(s, k, v)
+    m.cmd_run(s, dry_run=False, limit=None)
+    assert sorted(filed) == ["gh:x:3", "gh:x:5", "gh:x:7", "gh:x:9"]   # >=50 and Remote-US
+    assert len(json.loads((tmp_path / "seen.json").read_text())) == 10
