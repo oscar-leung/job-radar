@@ -51,6 +51,22 @@ def _clean_env() -> None:
             os.environ[k] = os.environ[k].strip()
 
 
+def load_seen(path, days: int, today: dt.date | None = None) -> dict:
+    """external_id -> ISO date last scored. Entries older than `days` expire so reposts get a fresh look."""
+    today = today or dt.date.today()
+    try:
+        raw = json.loads(path.read_text())
+    except (FileNotFoundError, ValueError):
+        return {}
+    cutoff = today - dt.timedelta(days=days)
+    return {k: v for k, v in raw.items() if dt.date.fromisoformat(v) >= cutoff}
+
+
+def save_seen(path, seen: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(seen, sort_keys=True))
+
+
 def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
     import anthropic
     _clean_env()
@@ -64,8 +80,13 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
 
     postings = fetch_all({k: cfg.get(k) for k in FETCHERS})
     pre = keyword_prefilter(postings, cfg.get("title_include", []), cfg.get("title_exclude", []))
+    seen = load_seen(settings.seen_path, settings.seen_days)
+    before = len(pre)
+    pre = [p for p in pre if p.external_id not in seen]
+    log.info("skipping %d postings already scored in the last %d days", before - len(pre), settings.seen_days)
     if tracker:
         pre = [p for p in pre if not tracker.exists(p.external_id)]
+    today = dt.date.today().isoformat()
     cap = min(limit or settings.max_scored, settings.max_scored)
     log.info("fetched=%d prefiltered_new=%d cap=%d", len(postings), len(pre), cap)
 
@@ -84,6 +105,7 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
             for u in usages:
                 meter.add(settings.model_filter, u)
             if not rel["relevant"]:
+                seen[p.external_id] = today
                 continue
             s, usages = sc.score(client, settings.model_score, s_sys, p)
             for u in usages:
@@ -93,11 +115,14 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
             log.warning("skipped %s (%s): %s", p.external_id, p.title, e)
             continue
         scored += 1
+        seen[p.external_id] = today
         row = {"posting": p.to_dict(), "score": s, "notion_url": None}
         if tracker and in_area(s) and s["fit_score"] >= settings.fit_threshold:
             row["notion_url"] = tracker.add(p, s)
         results.append(row)
 
+    if not dry_run:
+        save_seen(settings.seen_path, seen)
     _write_report(settings, results, meter, len(postings), len(pre))
     meter.log(settings.costs_path, "run-dry" if dry_run else "run")
     hits = sum(r["score"]["fit_score"] >= settings.fit_threshold and in_area(r["score"])

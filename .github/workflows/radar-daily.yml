@@ -45,6 +45,12 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -e .
+      - name: Restore seen-postings cache (skip re-scoring what was scored recently)
+        uses: actions/cache/restore@v4
+        with:
+          path: data/seen.json
+          key: seen-${{ github.run_id }}
+          restore-keys: seen-
       - name: Run radar
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
@@ -52,6 +58,12 @@ jobs:
           else
             python -m job_radar run
           fi
+      - name: Save seen-postings cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/seen.json
+          key: seen-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

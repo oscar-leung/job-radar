@@ -39,6 +39,8 @@ class Settings:
     prompts_dir: Path = ROOT / "prompts"
     reports_dir: Path = ROOT / "reports"
     costs_path: Path = ROOT / "costs.csv"
+    seen_path: Path = Path(os.getenv("RADAR_SEEN_PATH", ROOT / "data" / "seen.json"))
+    seen_days: int = int(os.getenv("RADAR_SEEN_DAYS", "30"))
 
 
 def load_resume(settings: Settings) -> str:

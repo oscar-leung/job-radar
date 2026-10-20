@@ -203,3 +203,13 @@ def test_location_gate():
     assert in_area({"location": "Remote-Global", "lane": "QA/SDET"})
     assert not in_area({"location": "Remote-Global", "lane": "SWE"})
     assert not in_area({"location": "Other", "lane": "QA/SDET"})
+
+
+def test_seen_cache_expires(tmp_path):
+    import datetime as dt
+    from job_radar.__main__ import load_seen, save_seen
+    p = tmp_path / "seen.json"
+    save_seen(p, {"old": "2026-08-01", "new": "2026-10-19"})
+    got = load_seen(p, 30, today=dt.date(2026, 10, 20))
+    assert got == {"new": "2026-10-19"}
+    assert load_seen(tmp_path / "missing.json", 30) == {}
