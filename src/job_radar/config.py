@@ -27,7 +27,7 @@ class Settings:
     model_filter: str = os.getenv("RADAR_MODEL_FILTER", "claude-haiku-5-5")
     model_score: str = os.getenv("RADAR_MODEL_SCORE", "claude-sonnet-5-5")
     model_judge: str = os.getenv("RADAR_MODEL_JUDGE", "claude-fable-5-1")
-    fit_threshold: int = int(os.getenv("RADAR_FIT_THRESHOLD", "70"))
+    fit_threshold: int = int(os.getenv("RADAR_FIT_THRESHOLD", "50"))
     max_scored: int = int(os.getenv("RADAR_MAX_SCORED", "60"))
     max_run_usd: float = float(os.getenv("RADAR_MAX_RUN_USD", "3.00"))
     notion_token: str = os.getenv("NOTION_TOKEN", "").strip()

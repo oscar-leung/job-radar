@@ -16,7 +16,7 @@ on:
         default: "3.00"
       fit_threshold:
         description: "Min fit score (0-100) to file in Notion"
-        default: "70"
+        default: "50"
 
 jobs:
   radar:
@@ -29,7 +29,7 @@ jobs:
       REQUIRED: ANTHROPIC_API_KEY NOTION_TOKEN RESUME_MD
       RADAR_MAX_SCORED: ${{ inputs.max_scored || '60' }}
       RADAR_MAX_RUN_USD: ${{ inputs.max_usd || '3.00' }}
-      RADAR_FIT_THRESHOLD: ${{ inputs.fit_threshold || '70' }}
+      RADAR_FIT_THRESHOLD: ${{ inputs.fit_threshold || '50' }}
     steps:
       - name: Check secrets are set
         run: |

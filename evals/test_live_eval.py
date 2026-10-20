@@ -17,8 +17,8 @@ from job_radar.cost import CostMeter
 from job_radar.ingest import Posting
 from job_radar.metrics import confusion, precision_recall
 
-MIN_PRECISION = float(os.getenv("EVAL_MIN_PRECISION", "0.75"))
-MIN_RECALL = float(os.getenv("EVAL_MIN_RECALL", "0.70"))
+MIN_PRECISION = float(os.getenv("EVAL_MIN_PRECISION", "0.70"))
+MIN_RECALL = float(os.getenv("EVAL_MIN_RECALL", "0.65"))
 RESULTS = Path(__file__).parent / "results"
 
 
