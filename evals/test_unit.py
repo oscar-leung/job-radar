@@ -223,3 +223,36 @@ def test_location_prefilter():
     kept = {p.location for p in location_prefilter(
         [mk("Remote - US"), mk("Hawthorne, CA"), mk("Austin, TX"), mk("London"), mk(""), mk("Mountain View")], pats)}
     assert kept == {"Remote - US", "Hawthorne, CA", "", "Mountain View"}
+
+
+# --- application kits ----------------------------------------------------
+def test_radar_score_parse():
+    from job_radar.kits import radar_score
+    assert radar_score("RADAR: 90/100 (2026-10-20). Why: x") == 90
+    assert radar_score("Applied via LinkedIn") == -1
+
+
+def test_kit_schema_is_strict_everywhere():
+    from job_radar.kits import KIT_SCHEMA, JUDGE_SCHEMA
+    j = sc.json_schema(JUDGE_SCHEMA)
+    assert j["additionalProperties"] is False
+    assert j["properties"]["unsupported"]["items"]["additionalProperties"] is False
+    assert sc.json_schema(KIT_SCHEMA)["additionalProperties"] is False
+
+
+def test_kit_markdown_flags_unsupported_claims():
+    from job_radar.kits import kit_markdown
+    kit = {"summary": "s", "bullets": ["b1"], "skills_to_feature": ["pytest"], "cover_note": "p1\n\np2",
+           "why_company": "w", "gaps": [], "interview_topics": ["t"]}
+    clean = kit_markdown(kit, {"verdict": "clean", "unsupported": []})
+    assert any("✅ clean" in l for l in clean) and "### Gaps and how to address them" not in clean
+    bad = kit_markdown(kit, {"verdict": "major", "unsupported": [{"quote": "10 years", "why": "not in resume"}]})
+    assert any("10 years" in l for l in bad) and any("⚠️ major" in l for l in bad)
+
+
+def test_fetch_jd_greenhouse(monkeypatch):
+    from job_radar import kits
+    class R:
+        def json(self): return {"content": "&lt;p&gt;Build pytest suites&lt;/p&gt;"}
+    monkeypatch.setattr(kits.requests, "get", lambda url, **k: R())
+    assert "Build pytest suites" in kits.fetch_jd("gh:acme:123")

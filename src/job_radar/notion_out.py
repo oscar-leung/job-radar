@@ -115,6 +115,56 @@ class NotionTracker:
             self._ids.add(p.external_id)
         return r.json().get("url", "")
 
+    @staticmethod
+    def text(row: dict, name: str) -> str:
+        prop = row["properties"].get(name, {})
+        items = prop.get("title") or prop.get("rich_text") or []
+        return "".join(i.get("plain_text", "") for i in items)
+
+    @staticmethod
+    def select(row: dict, name: str) -> str:
+        sel = (row["properties"].get(name) or {}).get("select") or {}
+        return sel.get("name", "")
+
+    def _query_all(self, flt: dict) -> list[dict]:
+        rows, body = [], {"filter": flt, "page_size": 100}
+        while True:
+            data = _request("POST", f"{API}/databases/{self.db}/query", headers=self.h, json=body).json()
+            rows.extend(data.get("results", []))
+            if not data.get("has_more"):
+                return rows
+            body["start_cursor"] = data["next_cursor"]
+
+    def radar_rows(self) -> list[dict]:
+        """Not Applied rows the Radar filed (Notes start with 'RADAR:')."""
+        return self._query_all({"and": [
+            {"property": "Status", "select": {"equals": "Not Applied"}},
+            {"property": "Notes", "rich_text": {"starts_with": "RADAR:"}},
+        ]})
+
+    def append_kit(self, page_id: str, lines: list[str]) -> None:
+        blocks = []
+        for ln in lines:
+            if ln.startswith("### "):
+                blocks.append({"object": "block", "type": "heading_3",
+                               "heading_3": {"rich_text": _rt(ln[4:])}})
+            elif ln.startswith("## "):
+                blocks.append({"object": "block", "type": "heading_2",
+                               "heading_2": {"rich_text": _rt(ln[3:])}})
+            elif ln.startswith("- "):
+                blocks.append({"object": "block", "type": "bulleted_list_item",
+                               "bulleted_list_item": {"rich_text": _rt(ln[2:])}})
+            else:
+                blocks.append({"object": "block", "type": "paragraph",
+                               "paragraph": {"rich_text": _rt(ln)}})
+        for i in range(0, len(blocks), 90):
+            _request("PATCH", f"{API}/blocks/{page_id}/children", headers=self.h,
+                     json={"children": blocks[i:i + 90]})
+        _request("PATCH", f"{API}/pages/{page_id}", headers=self.h,
+                 json={"properties": {"Cover Letter Status": {"select": {"name": "Drafted"}},
+                                      "Next Action": {"rich_text": _rt(
+                                          "Review application kit below (check flagged claims), then apply")}}})
+
     def backlog(self, limit: int = 200) -> list[dict]:
         """Rows worth a cover-note draft: Not Applied/Drafting, Strong or Stretch, with a JD URL."""
         body = {
@@ -124,6 +174,7 @@ class NotionTracker:
                 {"or": [{"property": "Fit", "select": {"equals": "🟢 Strong"}},
                         {"property": "Fit", "select": {"equals": "🟡 Stretch"}}]},
                 {"property": "JD URL", "url": {"is_not_empty": True}},
+                {"property": "Cover Letter Status", "select": {"does_not_equal": "Drafted"}},
             ]},
             "page_size": 100,
         }

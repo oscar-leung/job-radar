@@ -1,0 +1,48 @@
+name: Application kits + cover-note sweep
+# Manual only. Drafts go to Notion for review; nothing is ever sent or submitted.
+on:
+  workflow_dispatch:
+    inputs:
+      kits_limit:
+        description: "How many top Radar matches get a full kit"
+        default: "40"
+      min_score:
+        description: "Only matches at or above this Radar score"
+        default: "50"
+      max_usd:
+        description: "Spend cap for the kits run (USD)"
+        default: "30"
+      run_sweep:
+        description: "Also draft cover notes for the rest of the tracker backlog"
+        type: boolean
+        default: true
+
+jobs:
+  kits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      RESUME_MD: ${{ secrets.RESUME_MD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e .
+      - name: Application kits (top matches)
+        run: >
+          python -m job_radar kits --write-notion
+          --limit ${{ inputs.kits_limit }} --min-score ${{ inputs.min_score }}
+          --max-usd ${{ inputs.max_usd }}
+      - name: Cover-note sweep (rest of backlog)
+        if: ${{ always() && inputs.run_sweep }}
+        run: python -m job_radar sweep --write-notion --limit 150
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kits-and-notes
+          path: |
+            reports/
+            costs.csv
+          retention-days: 30

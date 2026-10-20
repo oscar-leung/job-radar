@@ -3,6 +3,7 @@
   python -m job_radar run [--dry-run] [--limit N]   daily radar pass
   python -m job_radar check-boards                  verify company slugs (no API cost)
   python -m job_radar sweep [--write-notion]        Option D: batch cover notes for backlog
+  python -m job_radar kits [--limit 40] [--write-notion]  application kits for top Radar matches
 """
 from __future__ import annotations
 
@@ -156,6 +157,13 @@ def main() -> None:
     r.add_argument("--dry-run", action="store_true", help="score but don't write to Notion")
     r.add_argument("--limit", type=int, default=None)
     sub.add_parser("check-boards")
+    k = sub.add_parser("kits")
+    k.add_argument("--limit", type=int, default=40)
+    k.add_argument("--min-score", type=int, default=50)
+    k.add_argument("--model", default="claude-opus-5-5")
+    k.add_argument("--judge", default="claude-opus-5-5")
+    k.add_argument("--max-usd", type=float, default=30.0)
+    k.add_argument("--write-notion", action="store_true")
     sw = sub.add_parser("sweep")
     sw.add_argument("--write-notion", action="store_true")
     sw.add_argument("--limit", type=int, default=150)
@@ -167,6 +175,9 @@ def main() -> None:
         cmd_check_boards(settings)
     elif a.cmd == "run":
         cmd_run(settings, a.dry_run, a.limit)
+    elif a.cmd == "kits":
+        from .kits import run_kits
+        run_kits(settings, a.limit, a.model, a.judge, a.min_score, a.max_usd, a.write_notion)
     elif a.cmd == "sweep":
         from .sweep import run_sweep
         run_sweep(settings, a.limit, a.model, a.write_notion)

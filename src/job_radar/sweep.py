@@ -23,6 +23,7 @@ SWEEP_SYSTEM = """You draft short cover notes for one candidate. Rules:
 - 150–220 words, plain and specific, no clichés, no flattery of the company.
 - Use ONLY experience that appears in the resume. Never invent metrics, titles, tools, or dates.
 - Do not state years of experience; say "extensive experience" if needed.
+- No clichés ("passionate", "fast-paced"), no em-dash-heavy prose.
 - Structure: why this role → 2 concrete matches from the resume → one line on what he'd do first.
 - End with a simple sign-off line: "Oscar Leung".
 """
@@ -57,9 +58,10 @@ def run_sweep(settings: Settings, limit: int, model: str, write_notion: bool) ->
     system = [{"type": "text", "text": f"{SWEEP_SYSTEM}\n<resume>\n{resume}\n</resume>",
                "cache_control": {"type": "ephemeral"}}]
     requests_, meta = [], {}
+    from .kits import fetch_jd
     for row in rows:
         url = row["properties"]["JD URL"]["url"]
-        jd = _jd_text(url)
+        jd = fetch_jd(_prop_text(row, "External ID"), url)
         if len(jd) < 300:
             continue
         cid = row["id"].replace("-", "")
