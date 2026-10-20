@@ -195,3 +195,11 @@ def test_truncated_reply_retried_with_more_room():
 
     out, usages = sc.is_relevant(Client, "claude-haiku-5-5", sc.system_blocks("r", "cv"), P())
     assert out["relevant"] is True and len(usages) == 2 and calls[1] == 2 * calls[0]
+
+
+def test_location_gate():
+    from job_radar.__main__ import in_area
+    assert in_area({"location": "Remote-US", "lane": "SWE"})
+    assert in_area({"location": "Remote-Global", "lane": "QA/SDET"})
+    assert not in_area({"location": "Remote-Global", "lane": "SWE"})
+    assert not in_area({"location": "Other", "lane": "QA/SDET"})
