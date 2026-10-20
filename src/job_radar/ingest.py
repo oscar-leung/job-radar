@@ -129,3 +129,13 @@ def keyword_prefilter(postings: list[Posting], include: list[str], exclude: list
             continue
         keep.append(p)
     return keep
+
+
+def location_prefilter(postings: list[Posting], keep_patterns: list[str]) -> list[Posting]:
+    """Free second pass: keep a posting if its location mentions remote/anywhere or a place
+    Oscar would work, or is blank. Drops e.g. on-site Texas or London before any model call.
+    The model's location field still gates what gets filed."""
+    if not keep_patterns:
+        return postings
+    rx = re.compile("|".join(keep_patterns), re.I)
+    return [p for p in postings if not (p.location or "").strip() or rx.search(p.location)]

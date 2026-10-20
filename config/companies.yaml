@@ -31,6 +31,32 @@ greenhouse:
   - chime
   - toast
   - mongodb
+  - andurilindustries
+  - spacex
+  - rocketlab
+  - relativity
+  - astranis
+  - carvana
+  - motional
+  - airbnb
+  - kodiak
+  - oura
+  - block
+  - samsungsemiconductor
+  - fivetran
+  - upstart
+  - newrelic
+  - klaviyo
+  - braze
+  - faire
+  - healthie
+  - zocdoc
+  - sambanovasystems
+  - singlestore
+  - adyen
+  - payoneer
+  - peloton
+  - onemedical
 lever:
   - palantir
   - zoox
@@ -45,6 +71,11 @@ ashby:
   - deepgram
   - harvey
   - vanta
+  - temporal
+  - langchain
+  - midjourney
+  - cursor
+  - baseten
 
 # Free title filter applied before any model call (regex, case-insensitive)
 title_include:
@@ -64,3 +95,13 @@ title_exclude:
   - "sales"
   - "account executive"
   - "recruit"
+
+# Free location filter applied after the title filter (regex, case-insensitive).
+# A posting is kept if its location matches any of these, or is blank.
+location_include:
+  - "remote"
+  - "anywhere"
+  - "distributed"
+  - "california|\\bCA\\b"
+  - "davis|sacramento|woodland|roseville|folsom|rancho cordova|elk grove|west sacramento"
+  - "san francisco|bay area|oakland|berkeley|emeryville|san jose|santa clara|sunnyvale|mountain view|palo alto|menlo park|redwood city|san mateo|foster city|south san francisco|fremont|newark|milpitas|cupertino|pleasanton|walnut creek"

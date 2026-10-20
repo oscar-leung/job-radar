@@ -213,3 +213,13 @@ def test_seen_cache_expires(tmp_path):
     got = load_seen(p, 30, today=dt.date(2026, 10, 20))
     assert got == {"new": "2026-10-19"}
     assert load_seen(tmp_path / "missing.json", 30) == {}
+
+
+def test_location_prefilter():
+    from job_radar.ingest import location_prefilter
+    mk = lambda loc: Posting(source="Greenhouse", company="c", external_id=loc or "blank", title="SDET",
+                             location=loc, url="u", description="d")
+    pats = ["remote", "california|\\bCA\\b", "davis|sacramento", "mountain view"]
+    kept = {p.location for p in location_prefilter(
+        [mk("Remote - US"), mk("Hawthorne, CA"), mk("Austin, TX"), mk("London"), mk(""), mk("Mountain View")], pats)}
+    assert kept == {"Remote - US", "Hawthorne, CA", "", "Mountain View"}

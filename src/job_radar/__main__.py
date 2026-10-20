@@ -15,7 +15,7 @@ import yaml
 
 from .config import Settings, load_resume
 from .cost import CostMeter
-from .ingest import FETCHERS, fetch_all, keyword_prefilter
+from .ingest import FETCHERS, fetch_all, keyword_prefilter, location_prefilter
 from . import score as sc
 
 log = logging.getLogger("job_radar")
@@ -80,6 +80,7 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
 
     postings = fetch_all({k: cfg.get(k) for k in FETCHERS})
     pre = keyword_prefilter(postings, cfg.get("title_include", []), cfg.get("title_exclude", []))
+    pre = location_prefilter(pre, cfg.get("location_include", []))
     seen = load_seen(settings.seen_path, settings.seen_days)
     before = len(pre)
     pre = [p for p in pre if p.external_id not in seen]
