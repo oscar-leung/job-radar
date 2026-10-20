@@ -44,11 +44,21 @@ def test_scorer_matches_hand_labels(labels, live_client):
 
     c = confusion(gold, pred)
     precision, recall, f1 = precision_recall(c)
+    # Threshold sweep: which cutoff best matches the hand labels?
+    sweep = []
+    for th in range(30, 95, 5):
+        pr, rc, f = precision_recall(confusion(gold, [r["score"] >= th for r in rows]))
+        sweep.append({"threshold": th, "precision": pr, "recall": rc, "f1": f})
+    best = max(sweep, key=lambda x: x["f1"])
     RESULTS.mkdir(exist_ok=True)
     (RESULTS / f"live_{s.model_score}.json").write_text(json.dumps({
         "model": s.model_score, "n": len(rows), "threshold": s.fit_threshold,
         "confusion": c, "precision": precision, "recall": recall, "f1": f1,
-        "cost_usd": round(meter.spent, 4), "rows": rows}, indent=2, ensure_ascii=False))
+        "cost_usd": round(meter.spent, 4), "best_threshold": best, "sweep": sweep,
+        "rows": rows}, indent=2, ensure_ascii=False))
+    print(f"\nLIVE EVAL n={len(rows)} threshold={s.fit_threshold} precision={precision:.2f} "
+          f"recall={recall:.2f} f1={f1:.2f} cost=${meter.spent:.2f} | best threshold "
+          f"{best['threshold']}: P={best['precision']:.2f} R={best['recall']:.2f} F1={best['f1']:.2f}")
 
     assert precision >= MIN_PRECISION, f"precision {precision:.2f} < {MIN_PRECISION}"
     assert recall >= MIN_RECALL, f"recall {recall:.2f} < {MIN_RECALL}"

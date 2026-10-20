@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -73,8 +74,13 @@ def main() -> None:
     postings = [Posting(**{k: l[k] for k in ("source", "company", "external_id", "title",
                                               "location", "url", "description")}) for l in labels]
 
+    cap = float(os.getenv("COMPARE_MAX_USD", "40"))
+    total_spent = 0.0
     summary = []
     for model in a.models:
+        if total_spent >= cap:
+            print(f"[{model}] skipped: comparison budget ${cap:.2f} reached (${total_spent:.2f} spent)")
+            continue
         print(f"[{model}] scoring {len(postings)} postings")
         meter = CostMeter(budget_usd=1e9)
         reqs = [{"custom_id": f"p{i}", "params": sc.score_params(model, system, p)}
@@ -116,8 +122,9 @@ def main() -> None:
                     supported += bool(v["supported"])
             row["faithfulness"] = supported / total if total else None
             row["judge_cost_usd"] = jm.spent
+        total_spent += row["score_cost_usd"] + row.get("judge_cost_usd", 0.0)
         summary.append(row)
-        print(f"  {row}")
+        print(f"  {row}  (running total ${total_spent:.2f} of ${cap:.2f})")
 
     OUT.mkdir(exist_ok=True)
     (OUT / "comparison.json").write_text(json.dumps(summary, indent=2))
