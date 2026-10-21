@@ -7,6 +7,12 @@ on:
         description: "Also run the 4-model Batch comparison + faithfulness judge"
         type: boolean
         default: false
+      models:
+        description: "Models to compare, space-separated, optional :effort (e.g. claude-opus-5-5:high)"
+        default: "claude-haiku-5-5 claude-sonnet-5-5 claude-opus-5-5 claude-fable-5-1"
+      compare_max_usd:
+        description: "Spend cap for the comparison (USD)"
+        default: "40"
 
 jobs:
   eval:
@@ -33,7 +39,9 @@ jobs:
         run: printf '%s' "$LABELS_JSONL" > evals/labels.jsonl
       - run: pytest -m live -v -s evals/test_live_eval.py
       - if: ${{ always() && inputs.compare }}
-        run: python evals/compare_models.py
+        run: python evals/compare_models.py --models ${{ inputs.models }}
+        env:
+          COMPARE_MAX_USD: ${{ inputs.compare_max_usd }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: eval-results, path: evals/results/ }

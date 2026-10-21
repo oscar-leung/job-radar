@@ -77,13 +77,15 @@ def main() -> None:
     cap = float(os.getenv("COMPARE_MAX_USD", "40"))
     total_spent = 0.0
     summary = []
-    for model in a.models:
+    for spec in a.models:
+        model, _, effort = spec.partition(":")
+        effort = effort or None
         if total_spent >= cap:
-            print(f"[{model}] skipped: comparison budget ${cap:.2f} reached (${total_spent:.2f} spent)")
+            print(f"[{spec}] skipped: comparison budget ${cap:.2f} reached (${total_spent:.2f} spent)")
             continue
-        print(f"[{model}] scoring {len(postings)} postings")
+        print(f"[{spec}] scoring {len(postings)} postings")
         meter = CostMeter(budget_usd=1e9)
-        reqs = [{"custom_id": f"p{i}", "params": sc.score_params(model, system, p)}
+        reqs = [{"custom_id": f"p{i}", "params": sc.score_params(model, system, p, effort)}
                 for i, p in enumerate(postings)]
         res = run_batch(client, reqs)
         outs, gold, pred = {}, [], []
@@ -102,7 +104,10 @@ def main() -> None:
             pred.append(o["fit_score"] >= s.fit_threshold)
         c = confusion(gold, pred)
         p_, r_, f1 = precision_recall(c)
-        row = {"model": model, "n": len(gold), "precision": p_, "recall": r_, "f1": f1,
+        scores_ = [outs[i]["fit_score"] for i in sorted(outs)]
+        best = max(((th, *precision_recall(confusion(gold, [x >= th for x in scores_])))
+                    for th in range(30, 95, 5)), key=lambda t: t[3])
+        row = {"model": spec, "best_threshold": best[0], "best_f1": best[3], "n": len(gold), "precision": p_, "recall": r_, "f1": f1,
                "score_cost_usd": meter.spent}
 
         if not a.no_judge:
@@ -137,12 +142,13 @@ def main() -> None:
 
     OUT.mkdir(exist_ok=True)
     (OUT / "comparison.json").write_text(json.dumps(summary, indent=2))
-    md = ["| Model | n | Precision | Recall | F1 | Bullet faithfulness | Scoring cost (batch) |",
-          "|---|---|---|---|---|---|---|"]
+    md = ["| Model (effort) | n | Precision | Recall | F1 | Best cutoff → F1 | Bullet faithfulness | Scoring cost (batch) |",
+          "|---|---|---|---|---|---|---|---|"]
     for r in summary:
         faith = f"{r['faithfulness']:.0%}" if r.get("faithfulness") is not None else "—"
         md.append(f"| {r['model']} | {r['n']} | {r['precision']:.2f} | {r['recall']:.2f} | "
-                  f"{r['f1']:.2f} | {faith} | ${r['score_cost_usd']:.3f} |")
+                  f"{r['f1']:.2f} | {r['best_threshold']} → {r['best_f1']:.2f} | {faith} | "
+                  f"${r['score_cost_usd']:.3f} |")
     (OUT / "comparison.md").write_text("\n".join(md) + "\n")
     print("\n".join(md))
 
