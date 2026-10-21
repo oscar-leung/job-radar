@@ -100,6 +100,40 @@ ashby:
   - commure
   - thumbtack
 
+workday:
+  # tenant|wdN|site from <tenant>.<wdN>.myworkdayjobs.com/<site>
+  - "nvidia|wd5|NVIDIAExternalCareerSite"
+  - "salesforce|wd12|External_Career_Site"
+  - "adobe|wd5|external_experienced"
+  - "intel|wd1|External"
+  - "paypal|wd1|jobs"
+  - "workday|wd5|Workday"
+  - "crowdstrike|wd5|crowdstrikecareers"
+  - "fiserv|wd5|EXT"
+  - "boeing|wd1|EXTERNAL_CAREERS"
+  - "sutterhealth|wd1|SH"
+  - "autodesk|wd1|Ext"
+  - "visa|wd5|Visa"
+  - "ebay|wd5|apply"
+  - "hp|wd5|ExternalCareerSite"
+  - "broadcom|wd1|External_Career"
+  - "motorolasolutions|wd5|Careers"
+  - "roche|wd3|roche-ext"
+  - "disney|wd5|disneycareer"
+  - "target|wd5|targetcareers"
+  - "mastercard|wd1|CorporateCareers"
+  - "illumina|wd1|illumina-careers"
+  - "athenahealth|wd1|External"
+  - "zoom|wd5|Zoom"
+  - "analogdevices|wd1|External"
+  - "cadence|wd1|External_Careers"
+  - "marvell|wd1|MarvellCareers"
+  - "kla|wd1|Search"
+  - "trimble|wd1|TrimbleCareers"
+  - "medtronic|wd1|MedtronicCareers"
+  - "abbott|wd5|abbottcareers"
+  - "thermofisher|wd5|ThermoFisherCareers"
+
 # Free title filter applied before any model call (regex, case-insensitive)
 title_include:
   - "\\bqa\\b"
@@ -128,6 +162,7 @@ title_exclude:
 # A posting is kept if its location matches any of these, or is blank.
 location_include:
   - "remote"
+  - "\\d+ locations"
   - "anywhere"
   - "distributed"
   - "california|\\bCA\\b"

@@ -96,6 +96,7 @@ def fetch_jd(external_id: str, url: str = "", max_chars: int = 14000) -> str:
         ats, org, jid = external_id.split(":", 2)
     except ValueError:
         ats = org = jid = ""
+    # Workday ids are "wd:tenant|wdN|site:/job/..." — handled by workday_description
     try:
         if ats == "gh":
             j = requests.get(f"https://boards-api.greenhouse.io/v1/boards/{org}/jobs/{jid}",
@@ -106,6 +107,9 @@ def fetch_jd(external_id: str, url: str = "", max_chars: int = 14000) -> str:
             lists = "\n".join(f"{b.get('text', '')}\n{strip_html(b.get('content', ''))}"
                               for b in j.get("lists", []))
             return (j.get("descriptionPlain", "") + "\n" + lists)[:max_chars]
+        if ats == "wd":
+            from .ingest import workday_description
+            return workday_description(external_id)[:max_chars]
         if ats == "ab":
             data = requests.get(f"https://api.ashbyhq.com/posting-api/job-board/{org}",
                                 timeout=30).json()

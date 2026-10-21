@@ -304,3 +304,23 @@ def test_effort_in_output_config():
     assert cfg["effort"] == "high" and cfg["format"]["type"] == "json_schema"
     assert "effort" not in sc.output_config(sc.SCORE_TOOL)
     assert sc.score_params("claude-opus-5-5", [], P(), "xhigh")["max_tokens"] >= 16000
+
+
+def test_workday_fetch_and_hydrate(monkeypatch):
+    from job_radar import ingest
+    class R:
+        def __init__(self, data): self.data = data
+        def raise_for_status(self): pass
+        def json(self): return self.data
+    def post(url, json=None, **k):
+        jobs = [{"title": "QA Analyst", "externalPath": "/job/Sacramento/QA_R-1", "locationsText": "Sacramento"}] \
+            if json["offset"] == 0 else []
+        return R({"jobPostings": jobs})
+    monkeypatch.setattr(ingest.requests, "post", post)
+    monkeypatch.setattr(ingest.requests, "get",
+                        lambda url, **k: R({"jobPostingInfo": {"jobDescription": "<p>Test EHR releases</p>"}}))
+    ps = ingest.fetch_workday("sutterhealth|wd1|SH", terms=["QA", "test"])
+    assert len(ps) == 1 and ps[0].external_id == "wd:sutterhealth|wd1|SH:/job/Sacramento/QA_R-1"
+    assert ps[0].url == "https://sutterhealth.wd1.myworkdayjobs.com/SH/job/Sacramento/QA_R-1"
+    out = ingest.hydrate_workday(ps)
+    assert "Test EHR releases" in out[0].description

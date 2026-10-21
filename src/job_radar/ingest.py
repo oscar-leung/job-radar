@@ -100,7 +100,71 @@ def fetch_ashby(org: str) -> list[Posting]:
     return out
 
 
-FETCHERS = {"greenhouse": fetch_greenhouse, "lever": fetch_lever, "ashby": fetch_ashby}
+WORKDAY_SEARCH = ["quality", "test", "QA", "SDET", "automation", "evaluation", "analyst",
+                  "support engineer", "devops", "release engineer"]
+
+
+def _wd_parts(spec: str) -> tuple[str, str, str]:
+    """'tenant|wd5|Site' -> (tenant, wd5, Site)."""
+    t, w, site = spec.split("|")
+    return t, w, site
+
+
+def fetch_workday(spec: str, terms: list[str] | None = None, per_term: int = 100) -> list[Posting]:
+    """Workday's public job-search JSON. Titles and locations only; descriptions are fetched
+    later for the few postings that pass the free filters (see hydrate_workday)."""
+    t, w, site = _wd_parts(spec)
+    base = f"https://{t}.{w}.myworkdayjobs.com/wday/cxs/{t}/{site}/jobs"
+    seen: dict[str, Posting] = {}
+    for term in terms or WORKDAY_SEARCH:
+        for offset in range(0, per_term, 20):
+            try:
+                r = requests.post(base, json={"appliedFacets": {}, "limit": 20, "offset": offset,
+                                              "searchText": term}, headers={**UA, "Accept": "application/json"},
+                                  timeout=TIMEOUT)
+                r.raise_for_status()
+                jobs = r.json().get("jobPostings", [])
+            except (requests.RequestException, ValueError) as e:
+                log.warning("workday %s %r: %s", t, term, e)
+                break
+            for j in jobs:
+                path = j.get("externalPath", "")
+                if path and path not in seen:
+                    seen[path] = Posting(
+                        source="Workday", company=t, external_id=f"wd:{spec}:{path}",
+                        title=j.get("title", ""), location=j.get("locationsText", "") or "",
+                        url=f"https://{t}.{w}.myworkdayjobs.com/{site}{path}", description="")
+            if len(jobs) < 20:
+                break
+    return list(seen.values())
+
+
+def workday_description(external_id: str) -> str:
+    _, spec, path = external_id.split(":", 2)
+    t, w, site = _wd_parts(spec)
+    try:
+        r = requests.get(f"https://{t}.{w}.myworkdayjobs.com/wday/cxs/{t}/{site}{path}",
+                         headers={**UA, "Accept": "application/json"}, timeout=TIMEOUT)
+        r.raise_for_status()
+        info = r.json().get("jobPostingInfo", {})
+        return strip_html(info.get("jobDescription", ""))
+    except (requests.RequestException, ValueError) as e:
+        log.warning("workday detail %s: %s", external_id, e)
+        return ""
+
+
+def hydrate_workday(postings: list[Posting]) -> list[Posting]:
+    """Fill in descriptions for Workday postings (one request each) after filtering."""
+    from concurrent.futures import ThreadPoolExecutor
+    todo = [p for p in postings if p.source == "Workday" and not p.description]
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for p, d in zip(todo, ex.map(lambda p: workday_description(p.external_id), todo)):
+            p.description = d
+    return [p for p in postings if p.source != "Workday" or p.description]
+
+
+FETCHERS = {"greenhouse": fetch_greenhouse, "lever": fetch_lever, "ashby": fetch_ashby,
+            "workday": fetch_workday}
 
 
 def fetch_all(companies: dict[str, list[str]]) -> list[Posting]:

@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .config import Settings, load_resume
 from .cost import CostMeter
-from .ingest import FETCHERS, fetch_all, keyword_prefilter, location_prefilter
+from .ingest import FETCHERS, fetch_all, hydrate_workday, keyword_prefilter, location_prefilter
 from . import score as sc
 
 log = logging.getLogger("job_radar")
@@ -89,6 +89,7 @@ def cmd_run(settings: Settings, dry_run: bool, limit: int | None) -> None:
     log.info("skipping %d postings already scored in the last %d days", before - len(pre), settings.seen_days)
     if tracker:
         pre = [p for p in pre if not tracker.exists(p.external_id)]
+    pre = hydrate_workday(pre)
     today = dt.date.today().isoformat()
     cap = min(limit or settings.max_scored, settings.max_scored)
     log.info("fetched=%d prefiltered_new=%d cap=%d", len(postings), len(pre), cap)
