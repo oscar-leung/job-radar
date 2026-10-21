@@ -95,6 +95,27 @@ numbers to be somewhat lower.
   resume. Even the best model invents something in about 1 bullet in 10, which is why every
   bullet lands in Notion marked "verify before use".
 
+**3. Does more thinking help? (Oct 21, rubric v2.1 with all of my target lanes)**
+
+Claude 5.5 models reason before answering; `effort` sets how hard. Same 60 labels, same cutoff:
+
+| Model (effort) | Precision | Recall | F1 | Best cutoff → F1 | Bullet faithfulness | Scoring cost (60, batch) |
+|---|---|---|---|---|---|---|
+| Opus 5.5 low | 0.76 | 0.83 | 0.79 | 50 → 0.79 | 94% | $1.11 |
+| Opus 5.5 medium (default) | 0.75 | 0.77 | 0.76 | 30 → 0.79 | 92% | $1.24 |
+| **Opus 5.5 high** | **0.78** | **0.83** | **0.81** | 50 → 0.81 | **94%** | $0.81 |
+| Opus 5.5 xhigh | 0.77 | 0.77 | 0.77 | 30 → 0.80 | 92% | $1.28 |
+| Sonnet 5.5 high | 0.75 | 0.69 | 0.72 | 30 → 0.77 | 89% | $0.32 |
+| Haiku 5.5 | 0.70 | 0.80 | 0.75 | 35 → 0.81 | 86% | $0.02 |
+
+**Finding: on this task, more thinking did not measurably help.** Every Opus setting lands
+between F1 0.76 and 0.81, well inside the ±0.12 bootstrap interval for 60 labels, and xhigh
+was not better than low. What did separate models was **faithfulness**: Opus at any effort
+invented fewer resume claims (92–94%) than Sonnet (89%) or Haiku (86%). Scoring a job is a
+judgment call the model makes quickly; extra reasoning budget is better spent where the
+output is long and checkable, like application kits and interview answers, which is where
+this project now uses `effort=high` plus a judge-and-revise loop.
+
 ## labeleval: the eval toolkit, reusable
 
 The grading code grew into its own package, [`labeleval/`](labeleval/): a pytest plugin and
