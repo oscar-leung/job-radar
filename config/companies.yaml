@@ -57,10 +57,24 @@ greenhouse:
   - payoneer
   - peloton
   - onemedical
+  - freenome
+  - anaplan
+  - aviatrix
+  - boxinc
+  - chainguard
+  - snorkelai
+  - zscaler
+  - maymobility
+  - everlaw
+  - natera
+  - oscar
 lever:
   - palantir
   - zoox
   - spotify
+  - arcadia
+  - jumpcloud
+  - waabi
 ashby:
   - openai
   - cohere
@@ -76,6 +90,15 @@ ashby:
   - midjourney
   - cursor
   - baseten
+  - skydio
+  - applied
+  - crusoe
+  - benchling
+  - headway
+  - amplitude
+  - circle
+  - commure
+  - thumbtack
 
 # Free title filter applied before any model call (regex, case-insensitive)
 title_include:
@@ -89,6 +112,11 @@ title_include:
   - "red.?team"
   - "ai trainer"
   - "model behavior"
+  # Oct 21: Oscar's other lanes (data analysis, IT/support, release/DevOps, trust & data quality)
+  - "data analyst|analytics engineer|business analyst|systems analyst|\\banalyst\\b"
+  - "support engineer|technical support|it support|it administrator|systems administrator|help ?desk"
+  - "release engineer|build engineer|devops|site reliability|\\bsre\\b"
+  - "trust (&|and) safety|content (review|moderation)|data (quality|operations)"
 title_exclude:
   - "director"
   - "\\bvp\\b"

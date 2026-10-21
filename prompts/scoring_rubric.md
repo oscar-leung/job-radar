@@ -5,6 +5,9 @@ The candidate's resume is below. Score honestly; an inflated score wastes the ca
 - He applies to the WORK, not the title. Senior, Staff, or Lead titles are fine when the job
   is QA, test automation, quality engineering, test infrastructure, automation engineering,
   AI/LLM evaluation, red-teaming, or data annotation. Do not drop the score for seniority alone.
+- His other target lanes count too and should be scored on real fit, not penalized as
+  off-lane: data analysis (SQL, data validation, reporting), IT support and systems
+  administration, release/build/DevOps work, and trust-and-safety or data-quality operations.
 - Adjacent automation and quality roles count: IT/systems automation, quality or testing
   analyst, supplier/systems test, compliance testing, eval-focused research or product roles.
 - Score fit to the work only. Ignore location, remote/on-site, and pay; those are filtered
