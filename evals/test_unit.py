@@ -347,3 +347,10 @@ def test_location_prefilter_drops_non_us_remote():
     from job_radar.ingest import location_prefilter
     kept = location_prefilter([P(location="Remote Canada"), P(location="Remote - US")], ["remote"])
     assert [p.location for p in kept] == ["Remote - US"]
+
+
+def test_dedupe_key_matches_hand_logged_ids():
+    from job_radar.notion_out import dedupe_key
+    assert dedupe_key("gh:affirm:7727320003") == dedupe_key("gh:7727320003")
+    assert dedupe_key("ab:handshake:7788a34b") == dedupe_key("ashby:7788a34b")
+    assert dedupe_key("gh:affirm:1") != dedupe_key("lv:affirm:1")

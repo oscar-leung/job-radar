@@ -74,6 +74,14 @@ def build_children(s: dict) -> list[dict]:
     return blocks
 
 
+def dedupe_key(external_id: str) -> tuple[str, str]:
+    """(source prefix, posting id): 'gh:affirm:123' and 'gh:123' both map to ('gh', '123').
+    Hand-logged 'ashby:<uuid>' is treated as the same source as 'ab:'."""
+    parts = (external_id or "").split(":")
+    src = {"ashby": "ab", "lever": "lv", "greenhouse": "gh"}.get(parts[0], parts[0])
+    return src, parts[-1]
+
+
 class NotionTracker:
     def __init__(self, token: str, database_id: str):
         if not token:
@@ -103,7 +111,12 @@ class NotionTracker:
     def exists(self, external_id: str) -> bool:
         if self._ids is None:
             self._ids = self._load_ids()
-        return external_id in self._ids
+        if external_id in self._ids:
+            return True
+        # Rows edited by hand (e.g. when logging an application) may carry a short ID like
+        # "gh:7727320003" instead of "gh:affirm:7727320003". Match on source + posting id too.
+        key = dedupe_key(external_id)
+        return any(dedupe_key(i) == key for i in self._ids)
 
     def add(self, p: Posting, s: dict) -> str:
         run_date = dt.date.today().isoformat()
