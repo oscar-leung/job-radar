@@ -162,6 +162,26 @@ class NotionTracker:
                                       "Next Action": {"rich_text": _rt(
                                           "Review application kit below (check flagged claims), then apply")}}})
 
+    def has_heading(self, page_id: str, prefix: str) -> bool:
+        """True if the page body already has a heading starting with `prefix`."""
+        cursor = None
+        while True:
+            url = f"{API}/blocks/{page_id}/children?page_size=100" + (f"&start_cursor={cursor}" if cursor else "")
+            data = _request("GET", url, headers=self.h).json()
+            for b in data.get("results", []):
+                t = b.get("type", "")
+                if t.startswith("heading_"):
+                    txt = "".join(x.get("plain_text", "") for x in b[t].get("rich_text", []))
+                    if txt.startswith(prefix):
+                        return True
+            if not data.get("has_more"):
+                return False
+            cursor = data["next_cursor"]
+
+    def set_next_action(self, page_id: str, text: str) -> None:
+        _request("PATCH", f"{API}/pages/{page_id}", headers=self.h,
+                 json={"properties": {"Next Action": {"rich_text": _rt(text)}}})
+
     def append_blocks(self, page_id: str, lines: list[str]) -> None:
         blocks = []
         for ln in lines:

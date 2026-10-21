@@ -19,6 +19,8 @@ from .kits import JUDGE_SCHEMA, JUDGE_SYSTEM, REVISE_SYSTEM, _max_tokens, _run_b
 
 log = logging.getLogger(__name__)
 
+PREP_DONE = "Prep pack ready"
+
 PREP_SYSTEM = """You coach ONE candidate for interviews for ONE job. His resume is below and is
 the only source of facts about him. Base company and team details only on the posting; do not
 invent facts about the company.
@@ -100,9 +102,10 @@ def run_prep(settings: Settings, limit: int, model: str, judge_model: str, min_s
 
     resume = load_resume(settings)
     tracker = NotionTracker(settings.notion_token, settings.notion_database_id)
-    rows = [r for r in tracker.radar_rows() if radar_score(tracker.text(r, "Notes")) >= min_score]
+    rows = [r for r in tracker.radar_rows() if radar_score(tracker.text(r, "Notes")) >= min_score
+            and not tracker.text(r, "Next Action").startswith(PREP_DONE)]
     rows.sort(key=lambda r: -radar_score(tracker.text(r, "Notes")))
-    rows = rows[:limit]
+    rows = [r for r in rows if not tracker.has_heading(r["id"], "Interview prep pack")][:limit]
 
     def sys_block(text):
         return [{"type": "text", "text": f"{text}\n\n<resume>\n{resume}\n</resume>",
@@ -207,5 +210,6 @@ def run_prep(settings: Settings, limit: int, model: str, judge_model: str, min_s
         (out_dir / f"{safe}.md").write_text(f"# {company} — {role}\n\n" + "\n\n".join(lines) + "\n")
         if write_notion:
             tracker.append_blocks(page_id, lines)
+            tracker.set_next_action(page_id, f"{PREP_DONE}: review kit + prep pack below, then apply")
     meter.log(settings.costs_path, "prep")
     print(f"prep={len(packs)} verdicts={verdicts} cost=${meter.spent:.4f}")
