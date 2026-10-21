@@ -102,8 +102,13 @@ def json_schema(tool: dict) -> dict:
     return walk(copy.deepcopy(tool["input_schema"]))
 
 
-def output_config(tool: dict) -> dict:
-    return {"format": {"type": "json_schema", "schema": json_schema(tool)}}
+def output_config(tool: dict, effort: str | None = None) -> dict:
+    """Structured-output config; `effort` (low|medium|high|xhigh|max) sets how hard the model
+    thinks before answering. Omitted = the model's default."""
+    cfg = {"format": {"type": "json_schema", "schema": json_schema(tool)}}
+    if effort:
+        cfg["effort"] = effort
+    return cfg
 
 
 def _canon(value, options):
@@ -148,10 +153,11 @@ def filter_params(model: str, system: list[dict], p: Posting) -> dict:
     }
 
 
-def score_params(model: str, system: list[dict], p: Posting) -> dict:
+def score_params(model: str, system: list[dict], p: Posting, effort: str | None = None) -> dict:
     return {
-        "model": model, "max_tokens": 3000, "system": system,
-        "output_config": output_config(SCORE_TOOL),
+        "model": model, "max_tokens": 16000 if effort in ("high", "xhigh", "max") else 3000,
+        "system": system,
+        "output_config": output_config(SCORE_TOOL, effort),
         "messages": [{"role": "user", "content": SCORE_TOOL["description"] + "\n\n" + posting_message(p)}],
     }
 

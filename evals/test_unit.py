@@ -286,3 +286,21 @@ def test_run_loop_parallel_saves_progress(tmp_path, monkeypatch):
     m.cmd_run(s, dry_run=False, limit=None)
     assert sorted(filed) == ["gh:x:3", "gh:x:5", "gh:x:7", "gh:x:9"]   # >=50 and Remote-US
     assert len(json.loads((tmp_path / "seen.json").read_text())) == 10
+
+
+def test_prep_markdown_and_schema():
+    from job_radar.prep import PREP_SCHEMA, prep_markdown
+    sch = sc.json_schema(PREP_SCHEMA)
+    assert sch["properties"]["likely_questions"]["items"]["additionalProperties"] is False
+    p = {"role_decoded": ["r"], "likely_questions": [{"question": "q?", "answer": "a1\na2"}],
+         "topics_to_review": ["t"], "questions_to_ask": ["k"], "first_90_days": "plan",
+         "linkedin_note": "Hi [Name], ...", "hiring_manager_email": "Subject: x\nHi [Name],\nOscar Leung"}
+    lines = prep_markdown(p, {"verdict": "clean", "unsupported": []})
+    assert "- Q1. q?" in lines and "a2" in lines and any("✅" in l for l in lines)
+
+
+def test_effort_in_output_config():
+    cfg = sc.output_config(sc.SCORE_TOOL, "high")
+    assert cfg["effort"] == "high" and cfg["format"]["type"] == "json_schema"
+    assert "effort" not in sc.output_config(sc.SCORE_TOOL)
+    assert sc.score_params("claude-opus-5-5", [], P(), "xhigh")["max_tokens"] >= 16000

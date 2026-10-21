@@ -164,18 +164,29 @@ def _run_batch(client, reqs: list[dict], label: str) -> dict:
     return {r.custom_id: r.result for r in client.messages.batches.results(b.id)}
 
 
+REVISE_SYSTEM = """You fix application materials so every claim is supported by the resume below.
+You get a kit (JSON) and a list of unsupported claims a reviewer found. Rewrite ONLY what is
+needed: remove or reword each flagged claim so it states what the resume actually says, and
+keep everything else as is. Do not add new claims. Answer in the required JSON format."""
+
+
+def _max_tokens(effort: str | None, base: int) -> int:
+    return {"high": 24000, "xhigh": 48000, "max": 64000}.get(effort or "", base)
+
+
 def run_kits(settings: Settings, limit: int, model: str, judge_model: str,
-             min_score: int, max_usd: float, write_notion: bool) -> None:
+             min_score: int, max_usd: float, write_notion: bool, effort: str | None = None,
+             revise: bool = False, redo: bool = False, label: str = "") -> None:
     import anthropic
     from .notion_out import NotionTracker
 
     resume = load_resume(settings)
     tracker = NotionTracker(settings.notion_token, settings.notion_database_id)
     rows = [r for r in tracker.radar_rows() if radar_score(tracker.text(r, "Notes")) >= min_score
-            and tracker.select(r, "Cover Letter Status") != "Drafted"]
+            and (redo or tracker.select(r, "Cover Letter Status") != "Drafted")]
     rows.sort(key=lambda r: -radar_score(tracker.text(r, "Notes")))
     rows = rows[:limit]
-    log.info("kit candidates: %d", len(rows))
+    log.info("kit candidates: %d (effort=%s revise=%s redo=%s)", len(rows), effort, revise, redo)
 
     def sys_block(text):
         return [{"type": "text", "text": f"{text}\n\n<resume>\n{resume}\n</resume>",
@@ -190,10 +201,10 @@ def run_kits(settings: Settings, limit: int, model: str, judge_model: str,
             continue
         cid = r["id"].replace("-", "")
         company, role = tracker.text(r, "Company"), tracker.text(r, "Role / Title")
-        meta[cid] = (r["id"], company, role)
+        meta[cid] = (r["id"], company, role, jd)
         reqs.append({"custom_id": cid, "params": {
-            "model": model, "max_tokens": 4000, "system": sys_block(KIT_SYSTEM),
-            "output_config": sc.output_config(KIT_SCHEMA),
+            "model": model, "max_tokens": _max_tokens(effort, 4000), "system": sys_block(KIT_SYSTEM),
+            "output_config": sc.output_config(KIT_SCHEMA, effort),
             "messages": [{"role": "user", "content":
                           f"Company: {company}\nRole: {role}\n\n<posting>\n{jd}\n</posting>"}],
         }})
@@ -203,49 +214,73 @@ def run_kits(settings: Settings, limit: int, model: str, judge_model: str,
 
     client = anthropic.Anthropic()
     meter = CostMeter(budget_usd=max_usd)
-    kits = {}
-    for cid, res in _run_batch(client, reqs, "kits").items():
-        if res.type != "succeeded":
-            log.warning("%s: %s", cid, res.type)
-            continue
-        meter.add(model, res.message.usage, batch=True)
-        try:
-            kits[cid] = sc.parse_message(res.message, KIT_SCHEMA["name"])
-        except ValueError as e:
-            log.warning("%s unparseable: %s", cid, e)
 
-    audits = {}
-    if kits and not meter.over_budget:
+    def collect(results, model_, schema_name, sink):
+        for cid, res in results.items():
+            if res.type != "succeeded":
+                log.warning("%s: %s", cid, res.type)
+                continue
+            meter.add(model_, res.message.usage, batch=True)
+            try:
+                sink[cid] = sc.parse_message(res.message, schema_name)
+            except ValueError as e:
+                log.warning("%s unparseable: %s", cid, e)
+
+    def judge(kits_: dict) -> dict:
+        out: dict = {}
         jreqs = [{"custom_id": cid, "params": {
-            "model": judge_model, "max_tokens": 2500, "system": sys_block(JUDGE_SYSTEM),
-            "output_config": sc.output_config(JUDGE_SCHEMA),
+            "model": judge_model, "max_tokens": _max_tokens(effort, 2500), "system": sys_block(JUDGE_SYSTEM),
+            "output_config": sc.output_config(JUDGE_SCHEMA, effort),
             "messages": [{"role": "user", "content":
                           "Audit this kit:\n" + json.dumps(k, ensure_ascii=False, indent=1)}],
-        }} for cid, k in kits.items()]
-        for cid, res in _run_batch(client, jreqs, "judge").items():
-            if res.type != "succeeded":
-                continue
-            meter.add(judge_model, res.message.usage, batch=True)
-            try:
-                a = sc.parse_message(res.message, JUDGE_SCHEMA["name"])
-                a["verdict"] = str(a.get("verdict", "")).lower() or "minor"
-                if a["verdict"] not in ("clean", "minor", "major"):
-                    a["verdict"] = "minor"
-                audits[cid] = a
-            except ValueError:
-                pass
+        }} for cid, k in kits_.items()]
+        if jreqs:
+            collect(_run_batch(client, jreqs, "judge"), judge_model, JUDGE_SCHEMA["name"], out)
+        for a in out.values():
+            a["verdict"] = str(a.get("verdict", "")).lower() or "minor"
+            if a["verdict"] not in ("clean", "minor", "major"):
+                a["verdict"] = "minor"
+        return out
+
+    kits: dict = {}
+    collect(_run_batch(client, reqs, "kits"), model, KIT_SCHEMA["name"], kits)
+    audits = judge(kits) if kits and not meter.over_budget else {}
+
+    revised = 0
+    if revise and not meter.over_budget:
+        flagged = {cid: k for cid, k in kits.items()
+                   if cid in audits and audits[cid]["verdict"] != "clean"}
+        rreqs = [{"custom_id": cid, "params": {
+            "model": model, "max_tokens": _max_tokens(effort, 4000), "system": sys_block(REVISE_SYSTEM),
+            "output_config": sc.output_config(KIT_SCHEMA, effort),
+            "messages": [{"role": "user", "content":
+                          "Kit:\n" + json.dumps(k, ensure_ascii=False, indent=1)
+                          + "\n\nUnsupported claims to fix:\n"
+                          + json.dumps(audits[cid]["unsupported"], ensure_ascii=False, indent=1)}],
+        }} for cid, k in flagged.items()]
+        fixed: dict = {}
+        if rreqs:
+            collect(_run_batch(client, rreqs, "revise"), model, KIT_SCHEMA["name"], fixed)
+        if fixed and not meter.over_budget:
+            reaudit = judge(fixed)
+            for cid, k in fixed.items():
+                kits[cid], revised = k, revised + 1
+                if cid in reaudit:
+                    audits[cid] = reaudit[cid]
 
     out_dir = settings.reports_dir / "kits"
     out_dir.mkdir(parents=True, exist_ok=True)
     verdicts = {"clean": 0, "minor": 0, "major": 0, "unchecked": 0}
     for cid, kit in kits.items():
-        page_id, company, role = meta[cid]
+        page_id, company, role, _ = meta[cid]
         audit = audits.get(cid)
         verdicts[audit["verdict"] if audit else "unchecked"] += 1
         lines = kit_markdown(kit, audit)
+        if label:
+            lines[0] = lines[0].replace("Application kit (Radar)", f"Application kit {label}")
         safe = re.sub(r"[^\w-]+", "_", f"{company}_{role}")[:80]
         (out_dir / f"{safe}.md").write_text(f"# {company} — {role}\n\n" + "\n\n".join(lines) + "\n")
         if write_notion:
             tracker.append_kit(page_id, lines)
-    meter.log(settings.costs_path, "kits")
-    print(f"kits={len(kits)} verdicts={verdicts} cost=${meter.spent:.4f}")
+    meter.log(settings.costs_path, f"kits{label and '-' + label}")
+    print(f"kits={len(kits)} revised={revised} verdicts={verdicts} cost=${meter.spent:.4f}")

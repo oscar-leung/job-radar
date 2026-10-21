@@ -143,6 +143,13 @@ class NotionTracker:
         ]})
 
     def append_kit(self, page_id: str, lines: list[str]) -> None:
+        self.append_blocks(page_id, lines)
+        _request("PATCH", f"{API}/pages/{page_id}", headers=self.h,
+                 json={"properties": {"Cover Letter Status": {"select": {"name": "Drafted"}},
+                                      "Next Action": {"rich_text": _rt(
+                                          "Review application kit below (check flagged claims), then apply")}}})
+
+    def append_blocks(self, page_id: str, lines: list[str]) -> None:
         blocks = []
         for ln in lines:
             if ln.startswith("### "):
@@ -160,10 +167,6 @@ class NotionTracker:
         for i in range(0, len(blocks), 90):
             _request("PATCH", f"{API}/blocks/{page_id}/children", headers=self.h,
                      json={"children": blocks[i:i + 90]})
-        _request("PATCH", f"{API}/pages/{page_id}", headers=self.h,
-                 json={"properties": {"Cover Letter Status": {"select": {"name": "Drafted"}},
-                                      "Next Action": {"rich_text": _rt(
-                                          "Review application kit below (check flagged claims), then apply")}}})
 
     def backlog(self, limit: int = 200) -> list[dict]:
         """Rows worth a cover-note draft: Not Applied/Drafting, Strong or Stretch, with a JD URL."""

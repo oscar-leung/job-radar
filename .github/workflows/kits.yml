@@ -1,47 +1,78 @@
-name: Application kits + cover-note sweep
+name: Application kits, prep packs + cover-note sweep
 # Manual only. Drafts go to Notion for review; nothing is ever sent or submitted.
 on:
   workflow_dispatch:
     inputs:
       kits_limit:
-        description: "How many top Radar matches get a full kit"
+        description: "How many top Radar matches get a kit (0 = skip kits)"
         default: "40"
       min_score:
         description: "Only matches at or above this Radar score"
         default: "50"
+      effort:
+        description: "Model effort for kits/prep: low | medium | high | xhigh | max"
+        default: "high"
+      revise:
+        description: "Fix judge-flagged claims, then re-judge"
+        type: boolean
+        default: true
+      redo:
+        description: "Regenerate kits for rows that already have one"
+        type: boolean
+        default: false
+      label:
+        description: "Label for regenerated kits, e.g. v2"
+        default: ""
+      prep_limit:
+        description: "How many top matches get an interview prep pack (0 = skip)"
+        default: "0"
       max_usd:
-        description: "Spend cap for the kits run (USD)"
+        description: "Spend cap per step (USD)"
         default: "30"
       run_sweep:
         description: "Also draft cover notes for the rest of the tracker backlog"
+        type: boolean
+        default: false
+      write_notion:
+        description: "Write results to Notion (off = artifacts only, for a test)"
         type: boolean
         default: true
 
 jobs:
   kits:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       RESUME_MD: ${{ secrets.RESUME_MD }}
+      WN: ${{ inputs.write_notion && '--write-notion' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -e .
-      - name: Application kits (top matches)
+      - name: Application kits
+        if: ${{ inputs.kits_limit != '0' }}
         run: >
-          python -m job_radar kits --write-notion
+          python -m job_radar kits $WN
           --limit ${{ inputs.kits_limit }} --min-score ${{ inputs.min_score }}
-          --max-usd ${{ inputs.max_usd }}
+          --max-usd ${{ inputs.max_usd }} --effort ${{ inputs.effort }}
+          ${{ inputs.revise && '--revise' || '' }} ${{ inputs.redo && '--redo' || '' }}
+          ${{ inputs.label != '' && format('--label {0}', inputs.label) || '' }}
+      - name: Interview prep packs
+        if: ${{ always() && inputs.prep_limit != '0' }}
+        run: >
+          python -m job_radar prep $WN
+          --limit ${{ inputs.prep_limit }} --min-score ${{ inputs.min_score }}
+          --effort ${{ inputs.effort }} --max-usd ${{ inputs.max_usd }}
       - name: Cover-note sweep (rest of backlog)
         if: ${{ always() && inputs.run_sweep }}
-        run: python -m job_radar sweep --write-notion --limit 150
+        run: python -m job_radar sweep $WN --limit 150
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: kits-and-notes
+          name: kits-prep-notes
           path: |
             reports/
             costs.csv

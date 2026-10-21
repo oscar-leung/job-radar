@@ -181,6 +181,18 @@ def main() -> None:
     k.add_argument("--judge", default="claude-opus-5-5")
     k.add_argument("--max-usd", type=float, default=30.0)
     k.add_argument("--write-notion", action="store_true")
+    k.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max"], default=None)
+    k.add_argument("--revise", action="store_true", help="fix judge-flagged claims, then re-judge")
+    k.add_argument("--redo", action="store_true", help="include rows that already have a kit")
+    k.add_argument("--label", default="", help='e.g. "v2" to mark a regenerated kit')
+    pp = sub.add_parser("prep")
+    pp.add_argument("--limit", type=int, default=40)
+    pp.add_argument("--min-score", type=int, default=50)
+    pp.add_argument("--model", default="claude-opus-5-5")
+    pp.add_argument("--judge", default="claude-opus-5-5")
+    pp.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max"], default="high")
+    pp.add_argument("--max-usd", type=float, default=60.0)
+    pp.add_argument("--write-notion", action="store_true")
     sw = sub.add_parser("sweep")
     sw.add_argument("--write-notion", action="store_true")
     sw.add_argument("--limit", type=int, default=150)
@@ -194,7 +206,11 @@ def main() -> None:
         cmd_run(settings, a.dry_run, a.limit)
     elif a.cmd == "kits":
         from .kits import run_kits
-        run_kits(settings, a.limit, a.model, a.judge, a.min_score, a.max_usd, a.write_notion)
+        run_kits(settings, a.limit, a.model, a.judge, a.min_score, a.max_usd, a.write_notion,
+                 effort=a.effort, revise=a.revise, redo=a.redo, label=a.label)
+    elif a.cmd == "prep":
+        from .prep import run_prep
+        run_prep(settings, a.limit, a.model, a.judge, a.min_score, a.effort, a.max_usd, a.write_notion)
     elif a.cmd == "sweep":
         from .sweep import run_sweep
         run_sweep(settings, a.limit, a.model, a.write_notion)
