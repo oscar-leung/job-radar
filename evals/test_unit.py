@@ -324,3 +324,26 @@ def test_workday_fetch_and_hydrate(monkeypatch):
     assert ps[0].url == "https://sutterhealth.wd1.myworkdayjobs.com/SH/job/Sacramento/QA_R-1"
     out = ingest.hydrate_workday(ps)
     assert "Test EHR releases" in out[0].description
+
+
+@pytest.mark.parametrize("loc,blocked", [
+    ("Canada; Calgary; Toronto; Vancouver", True),
+    ("Remote Canada", True),
+    ("Remote - UK", True),
+    ("Bangalore, India", True),
+    ("Remote US", False),
+    ("Remote - USA", False),
+    ("San Francisco, CA; Toronto, Canada", False),
+    ("Remote (USA or Canada)", False),
+    ("Anywhere", False),
+    ("", False),
+])
+def test_non_us_only(loc, blocked):
+    from job_radar.ingest import non_us_only
+    assert non_us_only(loc) is blocked
+
+
+def test_location_prefilter_drops_non_us_remote():
+    from job_radar.ingest import location_prefilter
+    kept = location_prefilter([P(location="Remote Canada"), P(location="Remote - US")], ["remote"])
+    assert [p.location for p in kept] == ["Remote - US"]

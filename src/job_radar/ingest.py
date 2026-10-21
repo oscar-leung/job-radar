@@ -199,7 +199,26 @@ def location_prefilter(postings: list[Posting], keep_patterns: list[str]) -> lis
     """Free second pass: keep a posting if its location mentions remote/anywhere or a place
     Oscar would work, or is blank. Drops e.g. on-site Texas or London before any model call.
     The model's location field still gates what gets filed."""
+    postings = [p for p in postings if not non_us_only(p.location)]
     if not keep_patterns:
         return postings
     rx = re.compile("|".join(keep_patterns), re.I)
     return [p for p in postings if not (p.location or "").strip() or rx.search(p.location)]
+
+
+# Oscar can only work from the US (no work authorization elsewhere). A "Remote" posting that
+# is limited to another country (e.g. "Remote Canada", "Canada; Toronto") is not remote for him.
+_NON_US = re.compile(
+    r"\b(canada|canadian|toronto|vancouver|montreal|calgary|ontario|british columbia|"
+    r"united kingdom|\buk\b|london|ireland|dublin|germany|berlin|france|paris|netherlands|"
+    r"amsterdam|spain|poland|india|bangalore|bengaluru|hyderabad|singapore|japan|tokyo|"
+    r"australia|sydney|brazil|mexico|emea|apac|latam|europe)\b", re.I)
+_US = re.compile(r"\b(us|u\.s\.|usa|united states|americas|anywhere|worldwide|global)\b|"
+                 r",\s*(ca|ny|wa|tx|ma|co|il|ga|dc)\b|california|new york|seattle|"
+                 r"san francisco|bay area", re.I)
+
+
+def non_us_only(location: str | None) -> bool:
+    """True when a location names only places outside the US (so Oscar can't take it)."""
+    loc = (location or "").strip()
+    return bool(loc) and bool(_NON_US.search(loc)) and not _US.search(loc)

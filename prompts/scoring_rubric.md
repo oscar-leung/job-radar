@@ -27,9 +27,12 @@ The candidate's resume is below. Score honestly; an inflated score wastes the ca
 
 ## Fields
 - lane: the job's category (QA/SDET, AI Eval, SWE, Data, IT Spec, Research, Other).
-- location: map the posting's location. Remote within the US → Remote-US. Fully remote and
-  open to candidates outside the US (worldwide, or any country/region) → Remote-Global.
-  Davis, Sacramento, Yolo, Bay Area as named. On-site or hybrid anywhere else → Other.
+- location: map the posting's location. The candidate lives in Davis, CA and can only work
+  from the US. Remote within the US → Remote-US. Fully remote and open to people working from
+  the US as well as elsewhere (worldwide, "anywhere", Americas) → Remote-Global. Remote but
+  limited to a country or region that excludes the US (e.g. "Remote Canada", "Canada; Toronto",
+  "Remote - UK", EMEA, India) → Other. Davis, Sacramento, Yolo, Bay Area as named. On-site or
+  hybrid anywhere else → Other.
 - resume_version: which resume variant fits best (QA-SDET, AI-Eval, SWE, General).
 - reasons: up to 4 concrete matches, each tied to something in the resume.
 - gaps: up to 4 concrete requirements the resume does not show.
