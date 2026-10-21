@@ -15,7 +15,7 @@ import re
 from . import score as sc
 from .config import Settings, load_resume
 from .cost import CostMeter
-from .kits import JUDGE_SCHEMA, JUDGE_SYSTEM, _max_tokens, _run_batch, fetch_jd, radar_score
+from .kits import JUDGE_SCHEMA, JUDGE_SYSTEM, REVISE_SYSTEM, _max_tokens, _run_batch, fetch_jd, radar_score
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ def prep_markdown(p: dict, audit: dict | None) -> list[str]:
 
 
 def run_prep(settings: Settings, limit: int, model: str, judge_model: str, min_score: int,
-             effort: str | None, max_usd: float, write_notion: bool) -> None:
+             effort: str | None, max_usd: float, write_notion: bool, revise: bool = True) -> None:
     import anthropic
     from .notion_out import NotionTracker
 
@@ -141,15 +141,17 @@ def run_prep(settings: Settings, limit: int, model: str, judge_model: str, min_s
         except ValueError as e:
             log.warning("%s unparseable: %s", cid, e)
 
-    audits: dict = {}
-    if packs and not meter.over_budget:
+    def judge(items: dict) -> dict:
+        out: dict = {}
         jreqs = [{"custom_id": cid, "params": {
             "model": judge_model, "max_tokens": _max_tokens(effort, 3000), "system": sys_block(JUDGE_SYSTEM),
             "output_config": sc.output_config(JUDGE_SCHEMA, effort),
             "messages": [{"role": "user", "content":
                           "Audit these interview answers and outreach drafts:\n"
                           + json.dumps(p, ensure_ascii=False, indent=1)}],
-        }} for cid, p in packs.items()]
+        }} for cid, p in items.items()]
+        if not jreqs:
+            return out
         for cid, res in _run_batch(client, jreqs, "prep-judge").items():
             if res.type != "succeeded":
                 continue
@@ -161,7 +163,37 @@ def run_prep(settings: Settings, limit: int, model: str, judge_model: str, min_s
             a["verdict"] = str(a.get("verdict", "")).lower()
             if a["verdict"] not in ("clean", "minor", "major"):
                 a["verdict"] = "minor"
-            audits[cid] = a
+            out[cid] = a
+        return out
+
+    audits = judge(packs) if packs and not meter.over_budget else {}
+    if revise and not meter.over_budget:
+        flagged = {cid: p for cid, p in packs.items() if cid in audits and audits[cid]["verdict"] != "clean"}
+        rreqs = [{"custom_id": cid, "params": {
+            "model": model, "max_tokens": _max_tokens(effort, 8000), "system": sys_block(REVISE_SYSTEM),
+            "output_config": sc.output_config(PREP_SCHEMA, effort),
+            "messages": [{"role": "user", "content":
+                          "Prep pack:\n" + json.dumps(p, ensure_ascii=False, indent=1)
+                          + "\n\nUnsupported claims to fix (in STAR answers, drop invented results "
+                          "rather than replacing them with new ones):\n"
+                          + json.dumps(audits[cid]["unsupported"], ensure_ascii=False, indent=1)}],
+        }} for cid, p in flagged.items()]
+        fixed: dict = {}
+        if rreqs:
+            for cid, res in _run_batch(client, rreqs, "prep-revise").items():
+                if res.type != "succeeded":
+                    continue
+                meter.add(model, res.message.usage, batch=True)
+                try:
+                    fixed[cid] = sc.parse_message(res.message, PREP_SCHEMA["name"])
+                except ValueError:
+                    pass
+        if fixed and not meter.over_budget:
+            reaudit = judge(fixed)
+            for cid, p in fixed.items():
+                packs[cid] = p
+                if cid in reaudit:
+                    audits[cid] = reaudit[cid]
 
     out_dir = settings.reports_dir / "prep"
     out_dir.mkdir(parents=True, exist_ok=True)

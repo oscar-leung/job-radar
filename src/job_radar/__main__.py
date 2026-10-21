@@ -193,6 +193,7 @@ def main() -> None:
     pp.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max"], default="high")
     pp.add_argument("--max-usd", type=float, default=60.0)
     pp.add_argument("--write-notion", action="store_true")
+    pp.add_argument("--no-revise", action="store_true")
     sw = sub.add_parser("sweep")
     sw.add_argument("--write-notion", action="store_true")
     sw.add_argument("--limit", type=int, default=150)
@@ -210,7 +211,8 @@ def main() -> None:
                  effort=a.effort, revise=a.revise, redo=a.redo, label=a.label)
     elif a.cmd == "prep":
         from .prep import run_prep
-        run_prep(settings, a.limit, a.model, a.judge, a.min_score, a.effort, a.max_usd, a.write_notion)
+        run_prep(settings, a.limit, a.model, a.judge, a.min_score, a.effort, a.max_usd, a.write_notion,
+                 revise=not a.no_revise)
     elif a.cmd == "sweep":
         from .sweep import run_sweep
         run_sweep(settings, a.limit, a.model, a.write_notion)
