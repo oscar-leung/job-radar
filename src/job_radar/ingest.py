@@ -168,18 +168,31 @@ FETCHERS = {"greenhouse": fetch_greenhouse, "lever": fetch_lever, "ashby": fetch
 
 
 def fetch_all(companies: dict[str, list[str]]) -> list[Posting]:
-    postings: list[Posting] = []
+    """Fetch every board in parallel (Workday tenants take ~15 s each)."""
+    from concurrent.futures import ThreadPoolExecutor
+    jobs = []
     for ats, slugs in companies.items():
         fetch = FETCHERS.get(ats)
         if not fetch:
             log.warning("unknown ATS %r in companies.yaml", ats)
             continue
-        for slug in slugs or []:
+        jobs += [(ats, fetch, slug) for slug in slugs or []]
+
+    def one(job):
+        ats, fetch, slug = job
+        try:
             got = fetch(slug)
-            log.info("%s/%s: %d postings", ats, slug, len(got))
+        except Exception as e:  # one broken board must not sink the run
+            log.warning("%s/%s failed: %s", ats, slug, e)
+            return []
+        log.info("%s/%s: %d postings", ats, slug, len(got))
+        return got
+
+    postings: list[Posting] = []
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        for got in ex.map(one, jobs):
             postings.extend(got)
     return postings
-
 
 def keyword_prefilter(postings: list[Posting], include: list[str], exclude: list[str]) -> list[Posting]:
     """Free, deterministic first pass on titles before any model call."""
