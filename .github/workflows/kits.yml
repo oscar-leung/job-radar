@@ -1,17 +1,19 @@
 name: Application kits, prep packs + cover-note sweep
-# Manual only. Drafts go to Notion for review; nothing is ever sent or submitted.
+# Weekly (Sun) small run for new matches + manual. Drafts go to Notion for review; nothing is ever sent or submitted.
 on:
+  schedule:
+    - cron: "17 16 * * 0"   # Sundays ~9 AM Pacific: kits + prep for the week's new matches, capped low
   workflow_dispatch:
     inputs:
       kits_limit:
         description: "How many top Radar matches get a kit (0 = skip kits)"
-        default: "40"
+        default: "15"
       min_score:
         description: "Only matches at or above this Radar score"
         default: "50"
       effort:
         description: "Model effort for kits/prep: low | medium | high | xhigh | max"
-        default: "high"
+        default: "medium"
       revise:
         description: "Fix judge-flagged claims, then re-judge"
         type: boolean
@@ -25,10 +27,10 @@ on:
         default: ""
       prep_limit:
         description: "How many top matches get an interview prep pack (0 = skip)"
-        default: "0"
+        default: "15"
       max_usd:
         description: "Spend cap per step (USD)"
-        default: "30"
+        default: "2.50"
       run_sweep:
         description: "Also draft cover notes for the rest of the tracker backlog"
         type: boolean
@@ -46,26 +48,33 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       RESUME_MD: ${{ secrets.RESUME_MD }}
-      WN: ${{ inputs.write_notion && '--write-notion' || '' }}
+      SCHED: ${{ github.event_name == 'schedule' }}
+      WN: ${{ (github.event_name == 'schedule' || inputs.write_notion) && '--write-notion' || '' }}
+      KL: ${{ inputs.kits_limit || '15' }}
+      PL: ${{ inputs.prep_limit || '15' }}
+      MIN: ${{ inputs.min_score || '50' }}
+      EFF: ${{ inputs.effort || 'medium' }}
+      USD: ${{ inputs.max_usd || '2.50' }}
+      REV: ${{ (github.event_name == 'schedule' || inputs.revise) && '--revise' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -e .
       - name: Application kits
-        if: ${{ inputs.kits_limit != '0' }}
+        if: ${{ env.KL != '0' }}
         run: >
           python -m job_radar kits $WN
-          --limit ${{ inputs.kits_limit }} --min-score ${{ inputs.min_score }}
-          --max-usd ${{ inputs.max_usd }} --effort ${{ inputs.effort }}
-          ${{ inputs.revise && '--revise' || '' }} ${{ inputs.redo && '--redo' || '' }}
+          --limit $KL --min-score $MIN
+          --max-usd $USD --effort $EFF
+          $REV ${{ inputs.redo && '--redo' || '' }}
           ${{ inputs.label != '' && format('--label {0}', inputs.label) || '' }}
       - name: Interview prep packs
-        if: ${{ always() && inputs.prep_limit != '0' }}
+        if: ${{ always() && env.PL != '0' }}
         run: >
           python -m job_radar prep $WN
-          --limit ${{ inputs.prep_limit }} --min-score ${{ inputs.min_score }}
-          --effort ${{ inputs.effort }} --max-usd ${{ inputs.max_usd }}
+          --limit $PL --min-score $MIN
+          --effort $EFF --max-usd $USD
       - name: Cover-note sweep (rest of backlog)
         if: ${{ always() && inputs.run_sweep }}
         run: python -m job_radar sweep $WN --limit 150
