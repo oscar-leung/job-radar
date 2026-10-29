@@ -276,7 +276,7 @@ def test_run_loop_parallel_saves_progress(tmp_path, monkeypatch):
     class T:
         def __init__(self, *a): pass
         def exists(self, x): return False
-        def add(self, p, s): filed.append(p.external_id); return "url"
+        def add(self, p, s, tier=None): filed.append(p.external_id); return "url"
     import job_radar.notion_out as no
     monkeypatch.setattr(no, "NotionTracker", T)
     s = m.Settings()

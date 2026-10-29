@@ -14,7 +14,11 @@ matches into the Notion "Master Job Tracker — Live" as `Status = Not Applied`.
 eval suite measures scoring accuracy against hand labels and checks bullets for fabrication.
 
 ## Layout
-- `src/job_radar/ingest.py` — ATS fetchers, HTML cleanup, keyword prefilter
+- `src/job_radar/ingest.py` — ATS + local-source fetchers (UC, EDJOIN, SmartRecruiters, iCIMS), detail hydration, prefilters
+- `src/job_radar/http.py` — per-host limiters + retry with exponential backoff/jitter (Workday 429s)
+- `src/job_radar/locality.py` — local-first tiers, queue order, local cutoff bonus
+- `src/job_radar/feedback.py` — Status → labels, few-shot block, monthly retune sweep
+- `src/job_radar/weekly.py` — weekly Notion summary (matches, applied, spend)
 - `src/job_radar/score.py` — forced-tool structured output, cached system prompt
 - `src/job_radar/notion_out.py` — exact tracker column mapping + dedupe on External ID
 - `src/job_radar/cost.py` — per-call cost + hard per-run budget
@@ -29,6 +33,8 @@ eval suite measures scoring accuracy against hand labels and checks bullets for 
 4. Every model call must go through `CostMeter`; keep `RADAR_MAX_RUN_USD` enforced.
 5. Report only real eval numbers in the README — no placeholder results presented as real.
 6. `pytest -q` (offline) must pass before every commit.
+7. Only public job-board endpoints; check robots.txt before adding a source. No logins, no scraping
+   behind auth. All board traffic goes through `http.request` with a limiter.
 
 ## Good next tasks
 - Add a `--since` filter using posting dates where the ATS exposes them

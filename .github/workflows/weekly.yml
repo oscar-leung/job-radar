@@ -1,0 +1,46 @@
+name: Weekly summary
+# Sundays after the kits run: one Notion page with the week's matches (local first), what was
+# applied to, and API spend. No model calls, so it costs nothing in API credit.
+on:
+  schedule:
+    - cron: "23 18 * * 0"   # Sundays ~11 AM Pacific (after the 9 AM kits run)
+  workflow_dispatch:
+    inputs:
+      write_notion:
+        description: "Create the Notion page (off = print only)"
+        type: boolean
+        default: true
+      days:
+        description: "Window in days"
+        default: "7"
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_SUMMARY_PARENT_ID: ${{ vars.NOTION_SUMMARY_PARENT_ID }}
+      RADAR_COSTS_PATH: data/costs.csv
+      WN: ${{ (github.event_name == 'schedule' || inputs.write_notion) && '--write-notion' || '' }}
+    steps:
+      - name: Check secrets are set
+        run: |
+          if [ -z "$NOTION_TOKEN" ]; then echo "::error::Missing repo secret NOTION_TOKEN"; exit 1; fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e .
+      - name: Restore spend log
+        uses: actions/cache/restore@v4
+        with:
+          path: data/costs.csv
+          key: costs-${{ github.run_id }}
+          restore-keys: costs-
+      - name: Weekly summary
+        run: |
+          python -m job_radar weekly $WN --days ${{ inputs.days || '7' }} | tee summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: weekly-summary, path: reports/, retention-days: 90 }

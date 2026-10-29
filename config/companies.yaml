@@ -218,6 +218,40 @@ workday:
   - "tinuiti|wd12|tinuiti"
   - "vantage|wd1|vantage_careers"
 
+# --- Local employers (Davis / Sacramento) — added Oct 29, 2026. Public endpoints only. ---
+# SmartRecruiters public Posting API (api.smartrecruiters.com/v1/companies/<id>/postings), US only.
+smartrecruiters:
+  - BoschGroup        # Roseville site
+  - WesternDigital
+  - ServiceNow
+
+# EDJOIN (edjoin.org, CA K-12 jobs). Each entry = comma-separated EDJOIN county IDs:
+# 58 Yolo (Davis, Woodland, West Sac, Winters, Esparto), 34 Sacramento, 31 Placer (Roseville).
+# Certificated sub pools and district IT/data roles survive the title filter; para/aide roles don't.
+edjoin:
+  - "58,34,31"
+
+# University of California systemwide board (jobs.universityofcalifornia.edu).
+# Campus codes: DV = UC Davis, DVMC = UC Davis Health (Sacramento), OP = UC Office of the President.
+uc:
+  - "DV,DVMC"
+
+# iCIMS boards (via each board's public sitemap.xml + JSON-LD on job pages).
+# CommonSpirit = Dignity Health (Woodland Memorial, Mercy/Methodist Sacramento). National board,
+# so detail fetches are capped per run (RADAR_ICIMS_MAX_DETAIL) and location is re-checked.
+icims:
+  - careers-commonspirit
+
+# Not added (checked Oct 29, 2026):
+# - Kaiser Permanente: kaiserpermanentejobs.org robots.txt disallows /search-jobs/, and its
+#   Taleo career section API reports "unavailable". Keep using LinkedIn/Indeed alerts for Kaiser.
+# - CalCareers (State of California): no public search API (ASP.NET postback pages only).
+#   Keep using the CalCareers saved searches + the calcareers-login skill.
+# - Sutter Health is already covered above (Workday: sutterhealth|wd1|SH).
+
+# Local-first ranking: tier order, best first (see src/job_radar/locality.py).
+location_priority: [davis, sacramento, hybrid, remote, bay_area, other]
+
 # Free title filter applied before any model call (regex, case-insensitive)
 title_include:
   - "\\bqa\\b"
@@ -235,12 +269,18 @@ title_include:
   - "support engineer|technical support|it support|it administrator|systems administrator|help ?desk"
   - "release engineer|build engineer|devops|site reliability|\\bsre\\b"
   - "trust (&|and) safety|content (review|moderation)|data (quality|operations)"
+  # Oct 29: local lanes — certificated substitute teaching (EDJOIN) and district/campus IT
+  - "substitute teacher|certificated substitute|guest teacher|\\bsub(stitute)? (teacher|pool)"
+  - "\\bit specialist|computer (technician|support)|network technician|information (systems|technology) (specialist|technician|analyst)|data specialist|programmer"
 title_exclude:
   - "director"
   - "\\bvp\\b"
   - "sales"
   - "account executive"
   - "recruit"
+  # Oscar skips para/aide roles and bilingual-Spanish roles (Oct 29)
+  - "paraprofessional|paraeducator|para ?educator|instructional (aide|assistant)|\\baide\\b"
+  - "bilingual(?!.*(cantonese|chinese|mandarin))|dual immersion|\\(spanish\\)"
 
 # Free location filter applied after the title filter (regex, case-insensitive).
 # A posting is kept if its location matches any of these, or is blank.

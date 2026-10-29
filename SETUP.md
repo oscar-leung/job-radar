@@ -17,6 +17,15 @@ Credits: $200, expire **Oct 24, 2026**. Next $200 arrives with the next Max rene
 3. Database ID is already set in `.env.example` (`d2c0fa46a231491cbe754cbf5abf272e`).
 
 Radar rows are easy to filter: `Notes` starts with `RADAR:` and `Status = Not Applied`.
+Local matches show `📍 Local: …` right after the score.
+
+4. **Weekly summary page:** open **Job Search Command Center** → `•••` → **Connections** → add the
+   same integration (the weekly page is created under it). To use another page, set the repo
+   variable `NOTION_SUMMARY_PARENT_ID` (Settings → Secrets and variables → Actions → Variables).
+5. **Feedback loop:** set `Status` on Radar rows as you go — Applied, Interview…, or a
+   `Skipped – …` / `Not Interested` option. Consider adding a `Skipped – not a fit` (or
+   `Not Interested`) option: the existing `Skipped – commute/onsite` options are read as
+   location-only and are not used to calibrate fit.
 
 ## 3. Local
 ```bash
@@ -37,7 +46,9 @@ Repo → Settings → Secrets and variables → Actions → add:
 - `RESUME_MD` — full resume text
 - `LABELS_JSONL` — contents of `evals/labels.jsonl` (for the live eval workflow)
 
-`Radar daily` then runs every morning. Trigger it once by hand (Actions → Radar daily →
+`Radar daily` then runs every morning. `Weekly summary` runs Sundays and `Monthly retune` on the
+1st; for the retune PR, enable **Settings → Actions → General → Workflow permissions → Allow
+GitHub Actions to create and approve pull requests**. Trigger it once by hand (Actions → Radar daily →
 Run workflow → dry run) to confirm.
 
 ## 5. Build with Claude Code on the API credit (saves your Max weekly limit)

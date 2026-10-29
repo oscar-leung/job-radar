@@ -110,6 +110,15 @@ def fetch_jd(external_id: str, url: str = "", max_chars: int = 14000) -> str:
         if ats == "wd":
             from .ingest import workday_description
             return workday_description(external_id)[:max_chars]
+        if ats == "sr":
+            from .ingest import smartrecruiters_description
+            return smartrecruiters_description(external_id)[:max_chars]
+        if ats == "ed":
+            from .ingest import edjoin_description
+            return edjoin_description(external_id)[:max_chars]
+        if ats == "ic" and url:
+            from .ingest import icims_detail
+            return icims_detail(external_id, url)[2][:max_chars]
         if ats == "ab":
             data = requests.get(f"https://api.ashbyhq.com/posting-api/job-board/{org}",
                                 timeout=30).json()

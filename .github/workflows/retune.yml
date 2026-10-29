@@ -1,0 +1,48 @@
+name: Monthly retune
+# 1st of each month: compare Radar's past scores with what Oscar actually did (Status column)
+# and propose a new fit cutoff. No model calls. The change arrives as a pull request to review;
+# nothing changes until it is merged.
+on:
+  schedule:
+    - cron: "41 17 1 * *"   # 1st of the month, ~10 AM Pacific
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  retune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check secrets are set
+        run: |
+          if [ -z "$NOTION_TOKEN" ]; then echo "::error::Missing repo secret NOTION_TOKEN"; exit 1; fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e .
+      - name: Retune from feedback
+        run: |
+          python -m job_radar retune --write | tee retune.md
+          cat retune.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Open a PR if the cutoff changed
+        run: |
+          prev=$(git show HEAD:config/tuning.json 2>/dev/null | python -c "import json,sys;print(json.load(sys.stdin)['fit_threshold'])" 2>/dev/null || echo 50)
+          new=$(python -c "import json;print(json.load(open('config/tuning.json'))['fit_threshold'])")
+          if [ "$prev" = "$new" ]; then echo "Cutoff unchanged ($new); no PR."; exit 0; fi
+          branch="retune/$(date +%Y-%m)"
+          git config user.name "job-radar-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add config/tuning.json
+          git commit -m "Retune: fit cutoff $prev -> $new from tracker feedback"
+          git push -u origin "$branch" --force
+          gh pr create --title "Monthly retune: fit cutoff $prev -> $new" --body-file retune.md --base main --head "$branch"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: retune-report, path: reports/, retention-days: 180 }
