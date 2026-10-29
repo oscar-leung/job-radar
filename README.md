@@ -2,8 +2,9 @@
 
 **An LLM job-matching agent with a test suite that proves it works.**
 
-Every morning Job Radar pulls new postings from public Greenhouse, Lever, and Ashby job
-boards, screens them with a small model, scores the survivors against my resume with a
+Every morning Job Radar pulls new postings from public Greenhouse, Lever, Ashby, Workday and
+SmartRecruiters boards plus local Davis/Sacramento sources (UC Davis, UC Davis Health, EDJOIN
+school districts, Dignity Health via iCIMS), screens them with a small model, scores the survivors against my resume with a
 larger one, and files strong matches into my Notion job tracker with three tailored resume
 bullets each. Nothing is ever submitted automatically.
 
@@ -29,6 +30,19 @@ ATS APIs ──► title regex (free) ──► Haiku 5.5 relevance ──► Op
 | Location gate | Only files roles in my work area (remote US, Davis/Sacramento, Bay Area) |
 | Prompt caching | Resume + rubric is a shared prefix; cache reads cost a fraction of normal input |
 | Cost meter | Every call is priced from `usage`; a hard per-run budget stops the run |
+
+## Local first, and it learns from what I do (Oct 29, 2026)
+
+| Change | How |
+|---|---|
+| **Local jobs first** | Each posting gets a tier (Davis/Yolo → Sacramento area → hybrid → remote → Bay Area). Local postings are scored first within the 40-posting daily cap (capped at 60% of slots so remote QA lanes aren't starved), filed at a 10-point lower cutoff, and tagged 📍 in Notes. Order lives in `location_priority` in `config/companies.yaml`. |
+| **Local sources** | UC systemwide board (UC Davis + UC Davis Health), EDJOIN (Yolo/Sacramento/Placer districts: certificated sub pools, district IT/data), SmartRecruiters (Bosch Roseville, WD, ServiceNow), iCIMS sitemap + JSON-LD (CommonSpirit/Dignity). Public endpoints only; robots.txt checked. Kaiser (robots disallows search) and CalCareers (no public API) are not scraped. |
+| **Feedback loop** | Status changes on Radar rows become labels: Applied/Rejected/Ghosted = yes, Screening/Interview/Offer = strong yes, Skipped/Not Interested = no, still Not Applied after 21 days = weak no. A dozen recent decisions go into the scorer's cached system prompt as few-shot calibration (~300 tokens, cached). Location-only skips are left out, since the scorer ignores location. |
+| **Monthly retune** | `python -m job_radar retune` sweeps the cutoff against Radar's own past scores vs. those labels — free, no re-scoring. It only raises the cutoff (the labels can't see below it), moves at most 10 points, needs 20+ labels, and arrives as a PR. |
+| **Workday 429s** | All Workday traffic shares one limiter (3 in flight, ~5 req/s with jitter) and retries 429/5xx with exponential backoff + jitter, honoring `Retry-After`. Detail pages are fetched only for postings that will actually be scored. |
+| **Weekly summary** | Sundays: a Notion page with the week's matches (local first), what was applied to, and spend vs. the monthly credit. No model calls. |
+
+Daily cost cap unchanged: $1.50 and 40 postings per run.
 
 ## First live run (Oct 19, 2026)
 
@@ -59,6 +73,7 @@ Each fix ships with a unit test (24 offline tests).
 | Test | What it checks | Runs |
 |---|---|---|
 | `evals/test_unit.py` | Parsing, prefilter, cost math, Notion mapping, metrics | Every push (CI) |
+| `evals/test_local_feedback.py` | Local tiers, backoff/limiter, new sources, feedback labels, retune, weekly page | Every push (CI) |
 | `evals/test_live_eval.py` | Precision/recall vs. hand labels, with a regression bar | Manual (spends credits) |
 | `evals/compare_models.py` | 4 models × labeled set via Batch API, plus bullet-faithfulness judge | Manual |
 
@@ -131,6 +146,9 @@ cp .env.example .env          # add your keys
 cp your-resume.md data/resume.md
 python -m job_radar check-boards
 python -m job_radar run --dry-run --limit 10
+python -m job_radar feedback  # pull Status labels from Notion (free)
+python -m job_radar retune    # suggest a cutoff from those labels (free)
+python -m job_radar weekly    # print the weekly summary (add --write-notion to post it)
 pytest -q                     # offline tests
 python evals/label_helper.py --n 50
 pytest -m live evals/test_live_eval.py

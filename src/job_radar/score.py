@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .ingest import Posting
 
-LANES = ["QA/SDET", "AI Eval", "SWE", "Data", "IT Spec", "Research", "Other"]
+LANES = ["QA/SDET", "AI Eval", "SWE", "Data", "IT Spec", "Educator", "Research", "Other"]
 FITS = ["🟢 Strong", "🟡 Stretch", "🎯 Reach", "⚪ Skip"]
 LOCATIONS = ["Davis", "Sacramento", "Yolo", "Bay Area", "Remote-US", "Remote-Global", "Other"]
 RESUME_VERSIONS = ["QA-SDET", "AI-Eval", "SWE", "General"]
@@ -59,10 +59,14 @@ def load_prompt(prompts_dir: Path, name: str) -> str:
     return (prompts_dir / name).read_text()
 
 
-def system_blocks(rubric: str, resume: str) -> list[dict]:
+def system_blocks(rubric: str, resume: str, examples: str = "") -> list[dict]:
+    """One cached system block: rubric, optional few-shot feedback (Oscar's own decisions on
+    past Radar matches, see feedback.py), then the resume. The feedback changes at most once a
+    day, so the whole prefix stays cache-friendly within a run."""
+    extra = f"\n\n{examples.strip()}" if examples.strip() else ""
     return [{
         "type": "text",
-        "text": f"{rubric}\n\n<resume>\n{resume}\n</resume>",
+        "text": f"{rubric}{extra}\n\n<resume>\n{resume}\n</resume>",
         "cache_control": {"type": "ephemeral"},
     }]
 

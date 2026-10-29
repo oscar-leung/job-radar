@@ -38,10 +38,13 @@ def _rt(text: str) -> list[dict]:
     return [{"type": "text", "text": {"content": text[:2000]}}]
 
 
-def build_properties(p: Posting, s: dict, run_date: str) -> dict:
-    """Map a posting + score dict to Notion page properties."""
+def build_properties(p: Posting, s: dict, run_date: str, tier: str | None = None) -> dict:
+    """Map a posting + score dict to Notion page properties. Local matches get a 📍 tag
+    right after the score so they stand out in the tracker (Notes still start 'RADAR: N/100')."""
+    from .locality import LABELS, is_local
+    tag = f" 📍 {LABELS[tier]}." if tier and is_local(tier) else ""
     notes = (
-        f"RADAR: {s['fit_score']}/100 ({run_date}). "
+        f"RADAR: {s['fit_score']}/100 ({run_date}).{tag} "
         f"Why: {'; '.join(s.get('reasons', []))}. "
         f"Gaps: {'; '.join(s.get('gaps', [])) or 'none noted'}."
     )
@@ -71,6 +74,25 @@ def build_children(s: dict) -> list[dict]:
             "object": "block", "type": "bulleted_list_item",
             "bulleted_list_item": {"rich_text": _rt(b)},
         })
+    return blocks
+
+
+def lines_to_blocks(lines: list[str]) -> list[dict]:
+    """Tiny markdown subset -> Notion blocks: '## ', '### ', '- ', plain paragraphs."""
+    blocks = []
+    for ln in lines:
+        if ln.startswith("### "):
+            blocks.append({"object": "block", "type": "heading_3",
+                           "heading_3": {"rich_text": _rt(ln[4:])}})
+        elif ln.startswith("## "):
+            blocks.append({"object": "block", "type": "heading_2",
+                           "heading_2": {"rich_text": _rt(ln[3:])}})
+        elif ln.startswith("- "):
+            blocks.append({"object": "block", "type": "bulleted_list_item",
+                           "bulleted_list_item": {"rich_text": _rt(ln[2:])}})
+        else:
+            blocks.append({"object": "block", "type": "paragraph",
+                           "paragraph": {"rich_text": _rt(ln)}})
     return blocks
 
 
@@ -118,11 +140,11 @@ class NotionTracker:
         key = dedupe_key(external_id)
         return any(dedupe_key(i) == key for i in self._ids)
 
-    def add(self, p: Posting, s: dict) -> str:
+    def add(self, p: Posting, s: dict, tier: str | None = None) -> str:
         run_date = dt.date.today().isoformat()
         r = _request("POST", f"{API}/pages", headers=self.h,
                      json={"parent": {"database_id": self.db},
-                           "properties": build_properties(p, s, run_date),
+                           "properties": build_properties(p, s, run_date, tier),
                            "children": build_children(s)})
         if self._ids is not None:
             self._ids.add(p.external_id)
@@ -155,6 +177,35 @@ class NotionTracker:
             {"property": "Notes", "rich_text": {"starts_with": "RADAR:"}},
         ]})
 
+    def feedback_rows(self) -> list[dict]:
+        """Every row the Radar filed (any Status) — the raw material for the feedback loop."""
+        return self._query_all({"property": "Notes", "rich_text": {"starts_with": "RADAR:"}})
+
+    def radar_rows_since(self, since: dt.date) -> list[dict]:
+        """Rows the Radar filed on or after `since`."""
+        return self._query_all({"and": [
+            {"property": "Notes", "rich_text": {"starts_with": "RADAR:"}},
+            {"timestamp": "created_time", "created_time": {"on_or_after": since.isoformat()}},
+        ]})
+
+    def applied_since(self, since: dt.date) -> list[dict]:
+        """Rows from any source with Date Applied on or after `since`."""
+        return self._query_all({"property": "Date Applied", "date": {"on_or_after": since.isoformat()}})
+
+    def create_page(self, parent_page_id: str, title: str, lines: list[str], icon: str = "📡") -> str:
+        """Create a child page under a regular Notion page (not the tracker database)."""
+        blocks = lines_to_blocks(lines)
+        r = _request("POST", f"{API}/pages", headers=self.h, json={
+            "parent": {"page_id": parent_page_id},
+            "icon": {"type": "emoji", "emoji": icon},
+            "properties": {"title": {"title": _rt(title)}},
+            "children": blocks[:90]})
+        page = r.json()
+        for i in range(90, len(blocks), 90):
+            _request("PATCH", f"{API}/blocks/{page['id']}/children", headers=self.h,
+                     json={"children": blocks[i:i + 90]})
+        return page.get("url", "")
+
     def append_kit(self, page_id: str, lines: list[str]) -> None:
         self.append_blocks(page_id, lines)
         _request("PATCH", f"{API}/pages/{page_id}", headers=self.h,
@@ -183,20 +234,7 @@ class NotionTracker:
                  json={"properties": {"Next Action": {"rich_text": _rt(text)}}})
 
     def append_blocks(self, page_id: str, lines: list[str]) -> None:
-        blocks = []
-        for ln in lines:
-            if ln.startswith("### "):
-                blocks.append({"object": "block", "type": "heading_3",
-                               "heading_3": {"rich_text": _rt(ln[4:])}})
-            elif ln.startswith("## "):
-                blocks.append({"object": "block", "type": "heading_2",
-                               "heading_2": {"rich_text": _rt(ln[3:])}})
-            elif ln.startswith("- "):
-                blocks.append({"object": "block", "type": "bulleted_list_item",
-                               "bulleted_list_item": {"rich_text": _rt(ln[2:])}})
-            else:
-                blocks.append({"object": "block", "type": "paragraph",
-                               "paragraph": {"rich_text": _rt(ln)}})
+        blocks = lines_to_blocks(lines)
         for i in range(0, len(blocks), 90):
             _request("PATCH", f"{API}/blocks/{page_id}/children", headers=self.h,
                      json={"children": blocks[i:i + 90]})

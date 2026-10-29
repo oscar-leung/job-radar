@@ -15,8 +15,11 @@ on:
         description: "Hard spend cap for this run (USD)"
         default: "1.50"
       fit_threshold:
-        description: "Min fit score (0-100) to file in Notion"
-        default: "50"
+        description: "Min fit score (0-100) to file in Notion (blank = config/tuning.json from the monthly retune, else 50)"
+        default: ""
+      local_bonus:
+        description: "Davis/Sacramento-area matches are filed at fit_threshold minus this"
+        default: "10"
 
 jobs:
   radar:
@@ -29,7 +32,9 @@ jobs:
       REQUIRED: ANTHROPIC_API_KEY NOTION_TOKEN RESUME_MD
       RADAR_MAX_SCORED: ${{ inputs.max_scored || '40' }}
       RADAR_MAX_RUN_USD: ${{ inputs.max_usd || '1.50' }}
-      RADAR_FIT_THRESHOLD: ${{ inputs.fit_threshold || '50' }}
+      RADAR_FIT_THRESHOLD: ${{ inputs.fit_threshold }}
+      RADAR_LOCAL_BONUS: ${{ inputs.local_bonus || '10' }}
+      RADAR_COSTS_PATH: data/costs.csv     # persisted in the Actions cache for the weekly summary
     steps:
       - name: Check secrets are set
         run: |
@@ -51,6 +56,12 @@ jobs:
           path: data/seen.json
           key: seen-${{ github.run_id }}
           restore-keys: seen-
+      - name: Restore spend log (read by the weekly summary)
+        uses: actions/cache/restore@v4
+        with:
+          path: data/costs.csv
+          key: costs-${{ github.run_id }}
+          restore-keys: costs-
       - name: Run radar
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
@@ -64,11 +75,17 @@ jobs:
         with:
           path: data/seen.json
           key: seen-${{ github.run_id }}
+      - name: Save spend log
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/costs.csv
+          key: costs-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: radar-report
           path: |
             reports/
-            costs.csv
+            data/costs.csv
           retention-days: 30

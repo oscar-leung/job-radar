@@ -8,6 +8,12 @@ The candidate's resume is below. Score honestly; an inflated score wastes the ca
 - His other target lanes count too and should be scored on real fit, not penalized as
   off-lane: data analysis (SQL, data validation, reporting), IT support and systems
   administration, release/build/DevOps work, and trust-and-safety or data-quality operations.
+- Certificated substitute teaching in K-12 districts near Davis/Sacramento (substitute pools,
+  guest teacher, day-to-day sub) is a target lane: lane = Educator. Score it on whether a
+  bachelor's degree plus a 30-day substitute permit is enough; roles that require a full
+  teaching credential, or that are paraprofessional/aide or bilingual-Spanish roles, are Skip.
+  District or campus IT, computer/network technician, and data specialist roles are IT Spec
+  or Data and count as target lanes.
 - Adjacent automation and quality roles count: IT/systems automation, quality or testing
   analyst, supplier/systems test, compliance testing, eval-focused research or product roles.
 - Score fit to the work only. Ignore location, remote/on-site, and pay; those are filtered
@@ -26,7 +32,7 @@ The candidate's resume is below. Score honestly; an inflated score wastes the ca
 `fit` must agree with the score band above.
 
 ## Fields
-- lane: the job's category (QA/SDET, AI Eval, SWE, Data, IT Spec, Research, Other).
+- lane: the job's category (QA/SDET, AI Eval, SWE, Data, IT Spec, Educator, Research, Other).
 - location: map the posting's location. The candidate lives in Davis, CA and can only work
   from the US. Remote within the US → Remote-US. Fully remote and open to people working from
   the US as well as elsewhere (worldwide, "anywhere", Americas) → Remote-Global. Remote but

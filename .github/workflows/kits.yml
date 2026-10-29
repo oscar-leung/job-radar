@@ -56,11 +56,18 @@ jobs:
       EFF: ${{ inputs.effort || 'medium' }}
       USD: ${{ inputs.max_usd || '2.50' }}
       REV: ${{ (github.event_name == 'schedule' || inputs.revise) && '--revise' || '' }}
+      RADAR_COSTS_PATH: data/costs.csv
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -e .
+      - name: Restore spend log
+        uses: actions/cache/restore@v4
+        with:
+          path: data/costs.csv
+          key: costs-${{ github.run_id }}
+          restore-keys: costs-
       - name: Application kits
         if: ${{ env.KL != '0' }}
         run: >
@@ -78,11 +85,17 @@ jobs:
       - name: Cover-note sweep (rest of backlog)
         if: ${{ always() && inputs.run_sweep }}
         run: python -m job_radar sweep $WN --limit 150
+      - name: Save spend log
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/costs.csv
+          key: costs-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: kits-prep-notes
           path: |
             reports/
-            costs.csv
+            data/costs.csv
           retention-days: 30
