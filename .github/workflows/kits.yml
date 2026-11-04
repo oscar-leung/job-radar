@@ -47,6 +47,7 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}   # blank = config/profile.yaml
       RESUME_MD: ${{ secrets.RESUME_MD }}
       SCHED: ${{ github.event_name == 'schedule' }}
       WN: ${{ (github.event_name == 'schedule' || inputs.write_notion) && '--write-notion' || '' }}

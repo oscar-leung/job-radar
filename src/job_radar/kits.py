@@ -19,11 +19,12 @@ from . import score as sc
 from .config import Settings, load_resume
 from .cost import CostMeter
 from .ingest import strip_html
+from .profile import PROFILE
 
 log = logging.getLogger(__name__)
 
 KIT_SYSTEM = """You prepare application materials for ONE candidate applying to ONE job.
-The candidate's resume is below. It is the only source of facts about him.
+The candidate's resume is below. It is the only source of facts about them.
 
 Hard rules:
 1. Use ONLY experience, employers, tools, projects, and numbers that appear in the resume.
@@ -39,12 +40,12 @@ Write:
 - summary: a 2-sentence resume summary tailored to this job.
 - bullets: 5 resume bullets ordered by relevance to this job, each grounded in the resume.
 - skills_to_feature: up to 8 skills from the resume to put first for this job.
-- cover_note: 150-220 words. Why this role, two concrete matches from the resume, what he
-  would do first. End with the line "Oscar Leung".
+- cover_note: 150-220 words. Why this role, two concrete matches from the resume, what they
+  would do first. End with the line "{{NAME}}".
 - why_company: 60-110 words answering "Why do you want to work here?", specific to the
   company and team in the posting.
 - gaps: up to 3 requirements the resume does not clearly show, each with how to address it.
-- interview_topics: 4 topics or questions he should prepare for, each tied to the posting.
+- interview_topics: 4 topics or questions the candidate should prepare for, each tied to the posting.
 
 Answer in the required JSON format."""
 
@@ -207,7 +208,7 @@ def run_kits(settings: Settings, limit: int, model: str, judge_model: str,
         company, role = tracker.text(r, "Company"), tracker.text(r, "Role / Title")
         meta[cid] = (r["id"], company, role, jd)
         reqs.append({"custom_id": cid, "params": {
-            "model": model, "max_tokens": _max_tokens(effort, 4000), "system": sys_block(KIT_SYSTEM),
+            "model": model, "max_tokens": _max_tokens(effort, 4000), "system": sys_block(PROFILE.render(KIT_SYSTEM)),
             "output_config": sc.output_config(KIT_SCHEMA, effort),
             "messages": [{"role": "user", "content":
                           f"Company: {company}\nRole: {role}\n\n<posting>\n{jd}\n</posting>"}],

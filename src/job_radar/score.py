@@ -11,11 +11,13 @@ import json
 from pathlib import Path
 
 from .ingest import Posting
+from .profile import PROFILE
 
-LANES = ["QA/SDET", "AI Eval", "SWE", "Data", "IT Spec", "Research", "Other"]
+# Enums come from config/profile.yaml so the same code works for any candidate.
+LANES = list(PROFILE.lanes)
 FITS = ["🟢 Strong", "🟡 Stretch", "🎯 Reach", "⚪ Skip"]
-LOCATIONS = ["Davis", "Sacramento", "Yolo", "Bay Area", "Remote-US", "Remote-Global", "Other"]
-RESUME_VERSIONS = ["QA-SDET", "AI-Eval", "SWE", "General"]
+LOCATIONS = PROFILE.locations
+RESUME_VERSIONS = list(PROFILE.resume_versions)
 
 FILTER_TOOL = {
     "name": "record_relevance",
@@ -56,7 +58,8 @@ SCORE_TOOL = {
 
 
 def load_prompt(prompts_dir: Path, name: str) -> str:
-    return (prompts_dir / name).read_text()
+    """Read a rubric and fill its {{PLACEHOLDERS}} from the profile."""
+    return PROFILE.render((prompts_dir / name).read_text())
 
 
 def system_blocks(rubric: str, resume: str) -> list[dict]:

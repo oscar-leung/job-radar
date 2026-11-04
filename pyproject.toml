@@ -1,7 +1,9 @@
 [project]
 name = "job-radar"
-version = "0.1.0"
+version = "0.2.0"
 description = "Daily LLM job-matching agent with a pytest evaluation suite"
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
   "anthropic>=0.40",
@@ -11,6 +13,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+
+[project.scripts]
+job-radar = "job_radar.__main__:main"
+
+[project.urls]
+Homepage = "https://oscar-leung.github.io/job-radar/"
+Source = "https://github.com/oscar-leung/job-radar"
 
 [tool.pytest.ini_options]
 testpaths = ["evals"]

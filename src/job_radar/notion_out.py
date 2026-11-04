@@ -1,7 +1,8 @@
 """Write matches into the Master Job Tracker — Live (Notion).
 
 Property names match that database exactly. Rows are created with Status "Not Applied"
-and a "RADAR:" prefix in Notes, so nothing is submitted anywhere — Oscar reviews first.
+and a "RADAR:" prefix in Notes, so nothing is submitted anywhere — a person reviews first.
+`create_database` builds a tracker with exactly these columns for a new user.
 Dedupe key is the "External ID" column.
 """
 from __future__ import annotations
@@ -13,6 +14,7 @@ import time
 import requests
 
 from .ingest import Posting
+from .profile import PROFILE
 
 log = logging.getLogger(__name__)
 API = "https://api.notion.com/v1"
@@ -235,3 +237,87 @@ class NotionTracker:
                       "paragraph": {"rich_text": _rt(t)}} for t in paras]
         _request("PATCH", f"{API}/blocks/{page_id}/children", headers=self.h,
                  json={"children": children})
+
+
+# --- bootstrap: build a tracker database with every column the radar writes -------------------
+STATUS_OPTIONS = ["Not Applied", "Drafting", "Applied", "Screening", "Interviewing", "Offer",
+                  "Rejected", "Ghosted", "Withdrew"]
+FIT_OPTIONS = ["🟢 Strong", "🟡 Stretch", "🎯 Reach", "⚪ Skip"]
+SOURCE_OPTIONS = ["Greenhouse", "Lever", "Ashby", "Workday"]
+COVER_OPTIONS = ["Not Started", "Drafted", "Sent"]
+
+
+def _select(options: list[str]) -> dict:
+    return {"select": {"options": [{"name": o} for o in options]}}
+
+
+def tracker_schema() -> dict:
+    """Notion property definitions, matching build_properties() and the kit/prep writers."""
+    return {
+        "Company": {"title": {}},
+        "Role / Title": {"rich_text": {}},
+        "JD URL": {"url": {}},
+        "External ID": {"rich_text": {}},
+        "Status": _select(STATUS_OPTIONS),
+        "Fit": _select(FIT_OPTIONS),
+        "Lane / Category": _select(list(PROFILE.lanes)),
+        "Location": _select(PROFILE.locations),
+        "Source Platform": _select(SOURCE_OPTIONS),
+        "Resume Version": _select(list(PROFILE.resume_versions)),
+        "Cover Letter Status": _select(COVER_OPTIONS),
+        "Next Action": {"rich_text": {}},
+        "Notes": {"rich_text": {}},
+        "Date Found": {"created_time": {}},
+    }
+
+
+REQUIRED_PROPERTIES = {
+    "Company": "title", "Role / Title": "rich_text", "JD URL": "url", "External ID": "rich_text",
+    "Status": "select", "Fit": "select", "Lane / Category": "select", "Location": "select",
+    "Source Platform": "select", "Resume Version": "select", "Cover Letter Status": "select",
+    "Next Action": "rich_text", "Notes": "rich_text",
+}
+
+
+def page_id_from(ref: str) -> str:
+    """Accept a Notion page URL or a bare id (with or without dashes)."""
+    import re
+    dashed = re.findall(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", ref)
+    plain = re.findall(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{32}(?![0-9a-zA-Z])", ref)
+    m = [x.replace("-", "") for x in dashed] or plain
+    if not m:
+        raise SystemExit(f"Could not find a Notion page id in {ref!r}. Paste the page URL from Share → Copy link.")
+    h = m[-1].lower()
+    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
+
+
+def _headers(token: str) -> dict:
+    if not token:
+        raise SystemExit("NOTION_TOKEN is not set.")
+    return {"Authorization": f"Bearer {token}", "Notion-Version": VERSION, "Content-Type": "application/json"}
+
+
+def create_database(token: str, parent_page_id: str, title: str = "Job Radar Tracker") -> tuple[str, str]:
+    """Create the tracker under a page the integration can see. Returns (database_id, url)."""
+    r = _request("POST", f"{API}/databases", headers=_headers(token), json={
+        "parent": {"type": "page_id", "page_id": parent_page_id},
+        "title": _rt(title),
+        "properties": tracker_schema(),
+    })
+    data = r.json()
+    return data["id"].replace("-", ""), data.get("url", "")
+
+
+def missing_properties(props: dict) -> list[str]:
+    """Names (with the expected type) that a database is missing or has with the wrong type."""
+    out = []
+    for name, typ in REQUIRED_PROPERTIES.items():
+        have = (props.get(name) or {}).get("type")
+        if have != typ:
+            out.append(f"{name} ({typ})" + (f", found {have}" if have else ""))
+    return out
+
+
+def check_database(token: str, database_id: str) -> list[str]:
+    data = _request("GET", f"{API}/databases/{database_id}", headers=_headers(token)).json()
+    return missing_properties(data.get("properties", {}))

@@ -15,21 +15,22 @@ import re
 from . import score as sc
 from .config import Settings, load_resume
 from .cost import CostMeter
+from .profile import PROFILE
 from .kits import JUDGE_SCHEMA, JUDGE_SYSTEM, REVISE_SYSTEM, _max_tokens, _run_batch, fetch_jd, radar_score
 
 log = logging.getLogger(__name__)
 
 PREP_DONE = "Prep pack ready"
 
-PREP_SYSTEM = """You coach ONE candidate for interviews for ONE job. His resume is below and is
-the only source of facts about him. Base company and team details only on the posting; do not
+PREP_SYSTEM = """You coach ONE candidate for interviews for ONE job. Their resume is below and is
+the only source of facts about them. Base company and team details only on the posting; do not
 invent facts about the company.
 
 Hard rules:
 1. STAR answers use ONLY situations, employers, tools, numbers and outcomes in the resume.
    If the resume has no direct example, say so in the answer and use the closest real one.
 2. Never state years of experience.
-3. Plain, specific, spoken-English answers he could say out loud in about 90 seconds.
+3. Plain, specific, spoken-English answers the candidate could say out loud in about 90 seconds.
 
 Write:
 - role_decoded: 3-5 bullets on what this team actually needs, read between the lines.
@@ -37,12 +38,12 @@ Write:
   technical, and role-specific), each with a STAR answer from the resume.
 - topics_to_review: up to 8 technical topics to brush up on before the interview, each with
   why it matters for this posting.
-- questions_to_ask: 5 sharp questions he should ask them.
+- questions_to_ask: 5 sharp questions the candidate should ask the interviewer.
 - first_90_days: a short 30/60/90-day plan.
 - linkedin_note: a LinkedIn connection note to someone on this team, under 280 characters,
   starting with "Hi [Name]," and mentioning one specific thing from the posting.
 - hiring_manager_email: a 90-130 word email to the hiring manager with a subject line on the
-  first line ("Subject: ..."), starting "Hi [Name]," and signed "Oscar Leung".
+  first line ("Subject: ..."), starting "Hi [Name]," and signed "{{NAME}}".
 
 Answer in the required JSON format."""
 
@@ -121,7 +122,7 @@ def run_prep(settings: Settings, limit: int, model: str, judge_model: str, min_s
         company, role = tracker.text(r, "Company"), tracker.text(r, "Role / Title")
         meta[cid] = (r["id"], company, role)
         reqs.append({"custom_id": cid, "params": {
-            "model": model, "max_tokens": _max_tokens(effort, 8000), "system": sys_block(PREP_SYSTEM),
+            "model": model, "max_tokens": _max_tokens(effort, 8000), "system": sys_block(PROFILE.render(PREP_SYSTEM)),
             "output_config": sc.output_config(PREP_SCHEMA, effort),
             "messages": [{"role": "user", "content":
                           f"Company: {company}\nRole: {role}\n\n<posting>\n{jd}\n</posting>"}],

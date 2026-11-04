@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Radar Pro Kit</title>
+<meta name="description" content="A daily AI job-matching agent you own. Reads public job boards, scores fit against your resume, files matches in Notion with tailored bullets. Never auto-applies. Self-hosted on GitHub Actions for about $1.50 a month.">
+<meta property="og:title" content="Job Radar Pro Kit: an AI job-matching agent you own">
+<meta property="og:description" content="Scores 46,000 postings a day against your resume for ~$1.50/month. Files matches in Notion. Never auto-applies. One-time $29.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://oscar-leung.github.io/job-radar/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='44' fill='none' stroke='%232563eb' stroke-width='8'/%3E%3Ccircle cx='50' cy='50' r='12' fill='%232563eb'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#fafaf9;--fg:#1c1917;--muted:#57534e;--card:#ffffff;--line:#e7e5e4;--accent:#2563eb;--accent-fg:#fff;--soft:#eff6ff;--good:#15803d}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0a09;--fg:#f5f5f4;--muted:#a8a29e;--card:#1c1917;--line:#292524;--accent:#60a5fa;--accent-fg:#0c0a09;--soft:#172554;--good:#4ade80}}
+:root[data-theme="dark"]{--bg:#0c0a09;--fg:#f5f5f4;--muted:#a8a29e;--card:#1c1917;--line:#292524;--accent:#60a5fa;--accent-fg:#0c0a09;--soft:#172554;--good:#4ade80}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+header{padding:56px 0 24px}
+h1{font-size:clamp(30px,5vw,44px);line-height:1.1;margin:0 0 14px;letter-spacing:-.02em}
+.lede{font-size:clamp(18px,2.4vw,21px);color:var(--muted);max-width:640px;margin:0 0 26px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-block;padding:13px 20px;border-radius:10px;font-weight:600;text-decoration:none;border:1px solid var(--line);color:var(--fg);background:var(--card)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.note{font-size:14px;color:var(--muted)}
+section{padding:28px 0;border-top:1px solid var(--line)}
+h2{font-size:24px;margin:0 0 14px;letter-spacing:-.01em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{margin:0 0 6px;font-size:17px}
+.card p{margin:0;color:var(--muted);font-size:15px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}
+.flow span{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.flow i{color:var(--muted)}
+.price{display:flex;gap:16px;flex-wrap:wrap}
+.price .card{flex:1 1 260px}
+.big{font-size:38px;font-weight:700;letter-spacing:-.02em}
+ul{padding-left:20px;margin:8px 0}
+li{margin:4px 0}
+.ok{color:var(--good);font-weight:700}
+details{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:8px 0;background:var(--card)}
+summary{cursor:pointer;font-weight:600}
+footer{padding:28px 0 48px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>An AI job-matching agent you own.<br>Not a bot that applies for you.</h1>
+  <p class="lede">Job Radar reads 46,000 public postings a day, scores each against <em>your</em> resume, and files the real matches in Notion with three tailored resume bullets. You decide what to apply to. It runs in your GitHub account for about $1.50 a month.</p>
+  <div class="cta">
+    <a class="btn primary" href="https://polar.sh/oscar-leung" rel="noopener">Get the Pro Kit, $29 one-time</a>
+    <a class="btn" href="https://github.com/oscar-leung/job-radar" rel="noopener">Free version on GitHub</a>
+  </div>
+  <p class="note">Open-source core (MIT). The Pro Kit is the 10-minute setup. No subscription, no auto-apply, your data never leaves your accounts.</p>
+</header>
+
+<section>
+  <h2>How it works</h2>
+  <div class="flow">
+    <span>Greenhouse · Lever · Ashby · Workday</span><i>→</i>
+    <span>free title filter</span><i>→</i>
+    <span>Haiku: relevant?</span><i>→</i>
+    <span>Opus or Haiku: fit 0–100</span><i>→</i>
+    <span>Notion row + 3 bullets</span>
+  </div>
+  <p style="margin-top:14px;color:var(--muted)">The free regex pass drops about 98% of postings before any model call. A seen-cache means the same job is never scored twice. Every run has a hard dollar cap and logs its cost.</p>
+</section>
+
+<section>
+  <h2>Why not an auto-apply tool?</h2>
+  <div class="grid">
+    <div class="card"><h3>You stay in control</h3><p>Matches land as "Not Applied". Every application is one you read, chose, and can defend in an interview.</p></div>
+    <div class="card"><h3>No account risk</h3><p>No bot in your LinkedIn session, no stored passwords. Only public job-board APIs that exist for exactly this.</p></div>
+    <div class="card"><h3>No invented experience</h3><p>Bullets may use only facts from your resume. A judge model audits every draft and flags anything unsupported.</p></div>
+    <div class="card"><h3>Measured, not vibes</h3><p>A pytest eval suite grades the scorer against hand labels: precision 0.78, recall 0.83 on the author's set.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Free vs. Pro Kit</h2>
+  <table>
+    <tr><th></th><th>Free (GitHub)</th><th>Pro Kit</th></tr>
+    <tr><td>The matching engine, evals, Notion output</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+    <tr><td>Setup</td><td>Fork, edit YAML, wire 4 secrets, create the database yourself (~1 afternoon)</td><td>Private template repo. "Use this template", paste 4 secrets, run. 10 minutes.</td></tr>
+    <tr><td>Who it is tuned for</td><td>One QA engineer's profile, as an example</td><td>8 lane packs: QA/SDET, AI eval, data, software, DevOps/SRE, IT support, product, UX</td></tr>
+    <tr><td>Cost preset</td><td>Best (Opus, ~$45/mo)</td><td>Lite wired in (~$1.50/mo), Best one variable away</td></tr>
+    <tr><td>Board list</td><td>235 verified company boards</td><td>Same list, curated per lane, plus how to add your own targets</td></tr>
+    <tr><td>Updates</td><td>Pull from main</td><td>Lifetime updates to the template</td></tr>
+    <tr><td>Support</td><td>GitHub Discussions, best effort</td><td>Same, plus a written troubleshooting guide for every preflight error</td></tr>
+    <tr><td>Price</td><td>$0 + your API calls</td><td><strong>$29 one-time</strong> + your API calls</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>What it costs to run</h2>
+  <div class="price">
+    <div class="card"><div class="big">~$1.50<span style="font-size:16px;color:var(--muted)">/mo</span></div><h3>Lite preset (Pro Kit default)</h3><p>Haiku filters and scores. F1 0.75 on the author's labels. About 5¢ a day.</p></div>
+    <div class="card"><div class="big">~$45<span style="font-size:16px;color:var(--muted)">/mo</span></div><h3>Best preset</h3><p>Haiku filters, Opus scores. F1 0.79–0.81, most faithful bullets. About $1.50 a day.</p></div>
+    <div class="card"><div class="big">$0</div><h3>Everything else</h3><p>GitHub Actions free tier, Notion free plan, public job-board APIs. No server to rent.</p></div>
+  </div>
+  <p class="note">You bring your own Claude API key with a spend limit you set. Nobody but you can run up your bill.</p>
+</section>
+
+<section>
+  <h2>What you get in the Pro Kit</h2>
+  <ul>
+    <li><strong>Private template repo</strong> on GitHub, pre-wired: daily radar, weekly application kits and interview prep packs, cost caps, preflight checks that name the exact missing secret.</li>
+    <li><strong>8 lane packs</strong>: one YAML file each. Copy one over <code>config/profile.yaml</code> and the filters, lanes and scoring guidance switch to your field.</li>
+    <li><strong>One-command Notion tracker</strong>: <code>job-radar init-notion</code> builds the database with every column, or checks an existing one.</li>
+    <li><strong>Setup and troubleshooting guide</strong> written for someone who has never used GitHub Actions.</li>
+    <li><strong>Eval starter</strong>: label 40 of your own postings in 20 minutes and pick your threshold from the same sweep the author used.</li>
+    <li><strong>Lifetime updates</strong> and the good feeling of funding an open-source tool.</li>
+  </ul>
+  <div class="cta" style="margin-top:14px">
+    <a class="btn primary" href="https://polar.sh/oscar-leung" rel="noopener">Get the Pro Kit, $29</a>
+  </div>
+</section>
+
+<section>
+  <h2>Questions</h2>
+  <details><summary>Does it apply to jobs for me?</summary><p>No, and it never will. It finds, scores, and drafts. You apply. Mass auto-apply doubles the pile every recruiter has to read and gets accounts restricted.</p></details>
+  <details><summary>What do I need?</summary><p>A GitHub account (free), a Notion account (free), and a Claude API key from platform.claude.com with a spend limit you choose. The guide walks through all three.</p></details>
+  <details><summary>Where does my resume go?</summary><p>Into a GitHub Actions secret in your own repo. From there to the Claude API and to your Notion workspace. Nowhere else. The code is public, so you can check.</p></details>
+  <details><summary>Which job boards?</summary><p>Any company that publishes jobs through Greenhouse, Lever, Ashby or Workday, which is most of tech and a lot of healthcare, finance and government contractors. 235 boards are verified in the box; adding one is one line of YAML.</p></details>
+  <details><summary>I'm not in QA. Will it work for me?</summary><p>Yes. The lane packs cover data, software, DevOps, IT, product and UX, and the scoring guidance is a few bullets you write in plain English about how you decide.</p></details>
+  <details><summary>Refunds?</summary><p>If it does not run for you within 14 days and the troubleshooting guide did not help, ask and you get your money back.</p></details>
+</section>
+
+<footer>
+  Built by <a href="https://oscar-leung.github.io" rel="noopener">Oscar Leung</a>, a QA/SDET engineer in Davis, CA, to run his own search. Read the <a href="https://github.com/oscar-leung/job-radar#evaluation" rel="noopener">eval write-up</a>. Purchases are handled by Polar.sh, which collects any applicable sales tax.
+</footer>
+</div>
+</body>
+</html>

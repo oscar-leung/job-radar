@@ -16,6 +16,7 @@ import requests
 from .config import Settings, load_resume
 from .cost import CostMeter
 from .ingest import strip_html
+from .profile import PROFILE
 
 log = logging.getLogger(__name__)
 
@@ -24,8 +25,8 @@ SWEEP_SYSTEM = """You draft short cover notes for one candidate. Rules:
 - Use ONLY experience that appears in the resume. Never invent metrics, titles, tools, or dates.
 - Do not state years of experience; say "extensive experience" if needed.
 - No clichés ("passionate", "fast-paced"), no em-dash-heavy prose.
-- Structure: why this role → 2 concrete matches from the resume → one line on what he'd do first.
-- End with a simple sign-off line: "Oscar Leung".
+- Structure: why this role → 2 concrete matches from the resume → one line on what they'd do first.
+- End with a simple sign-off line: "{{NAME}}".
 """
 
 
@@ -55,7 +56,7 @@ def run_sweep(settings: Settings, limit: int, model: str, write_notion: bool) ->
     rows = tracker.backlog(limit)
     log.info("backlog rows: %d", len(rows))
 
-    system = [{"type": "text", "text": f"{SWEEP_SYSTEM}\n<resume>\n{resume}\n</resume>",
+    system = [{"type": "text", "text": f"{PROFILE.render(SWEEP_SYSTEM)}\n<resume>\n{resume}\n</resume>",
                "cache_control": {"type": "ephemeral"}}]
     requests_, meta = [], {}
     from .kits import fetch_jd

@@ -4,6 +4,8 @@
   python -m job_radar check-boards                  verify company slugs (no API cost)
   python -m job_radar sweep [--write-notion]        Option D: batch cover notes for backlog
   python -m job_radar kits [--limit 40] [--write-notion]  application kits for top Radar matches
+  python -m job_radar init-notion --parent <page>   create the tracker database in Notion
+  python -m job_radar init-notion --check           verify the configured database has every column
 """
 from __future__ import annotations
 
@@ -19,13 +21,14 @@ from .config import Settings, load_resume
 from .cost import CostMeter
 from .ingest import FETCHERS, fetch_all, hydrate_workday, keyword_prefilter, location_prefilter
 from . import score as sc
+from .profile import PROFILE
 
 log = logging.getLogger("job_radar")
 
-# Where Oscar will actually work: remote, Davis/Sacramento/Yolo commute, or Bay Area (hybrid).
-IN_AREA = {"Remote-US", "Davis", "Sacramento", "Yolo", "Bay Area"}
-# International remote is fine, but only for the core lanes he is targeting.
-GLOBAL_OK_LANES = {"QA/SDET", "AI Eval"}
+# Where the candidate will actually work (config/profile.yaml): remote in their country, or a named place.
+IN_AREA = {"Remote-US", *PROFILE.in_area}
+# Worldwide remote is fine, but only for the lanes the profile allows.
+GLOBAL_OK_LANES = set(PROFILE.global_remote_ok_lanes)
 
 
 def in_area(score: dict) -> bool:
@@ -34,7 +37,35 @@ def in_area(score: dict) -> bool:
 
 
 def _companies(settings: Settings) -> dict:
-    return yaml.safe_load(settings.companies_path.read_text())
+    """Boards + free filters. Filter lists in config/profile.yaml override the ones here, so a
+    lane pack is a single file."""
+    cfg = yaml.safe_load(settings.companies_path.read_text()) or {}
+    for k in ("title_include", "title_exclude", "location_include"):
+        if getattr(PROFILE, k) is not None:
+            cfg[k] = getattr(PROFILE, k)
+    return cfg
+
+
+def cmd_init_notion(settings: Settings, parent: str | None, title: str, check: bool) -> None:
+    from .notion_out import NotionTracker, check_database, create_database, page_id_from
+    _clean_env()
+    if check:
+        if not settings.notion_database_id:
+            raise SystemExit("No database configured. Set NOTION_DATABASE_ID or run init-notion --parent <page>.")
+        missing = check_database(settings.notion_token, settings.notion_database_id)
+        if missing:
+            print("Missing or mistyped columns:")
+            for m in missing:
+                print(f"  - {m}")
+            raise SystemExit(1)
+        print(f"OK  database {settings.notion_database_id} has every column the radar writes.")
+        return
+    if not parent:
+        raise SystemExit("Pass --parent <Notion page URL or id> (the page the tracker will live under), or --check.")
+    db_id, url = create_database(settings.notion_token, page_id_from(parent), title)
+    print(f"Created {title}: {url}")
+    print("Add this to .env (local) and to your GitHub Actions secrets (cloud):")
+    print(f"NOTION_DATABASE_ID={db_id}")
 
 
 def cmd_check_boards(settings: Settings) -> None:
@@ -175,6 +206,10 @@ def main() -> None:
     r.add_argument("--dry-run", action="store_true", help="score but don't write to Notion")
     r.add_argument("--limit", type=int, default=None)
     sub.add_parser("check-boards")
+    ini = sub.add_parser("init-notion", help="create (or verify) the Notion tracker database")
+    ini.add_argument("--parent", default=None, help="Notion page URL or id the new database goes under")
+    ini.add_argument("--title", default="Job Radar Tracker")
+    ini.add_argument("--check", action="store_true", help="verify the configured database instead of creating one")
     k = sub.add_parser("kits")
     k.add_argument("--limit", type=int, default=40)
     k.add_argument("--min-score", type=int, default=50)
@@ -204,6 +239,8 @@ def main() -> None:
 
     if a.cmd == "check-boards":
         cmd_check_boards(settings)
+    elif a.cmd == "init-notion":
+        cmd_init_notion(settings, a.parent, a.title, a.check)
     elif a.cmd == "run":
         cmd_run(settings, a.dry_run, a.limit)
     elif a.cmd == "kits":
