@@ -1,0 +1,42 @@
+name: Init Notion
+# One-off helper: create the tracker database (or verify an existing one) without installing
+# anything locally. Needs the NOTION_TOKEN secret. Spends no API credit.
+on:
+  workflow_dispatch:
+    inputs:
+      parent_page:
+        description: "Notion page URL the tracker goes under (leave blank with check = true)"
+        default: ""
+      title:
+        description: "Database title"
+        default: "Job Radar Tracker"
+      check:
+        description: "Verify the configured NOTION_DATABASE_ID instead of creating a new database"
+        type: boolean
+        default: false
+
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+    steps:
+      - name: Check the Notion token is set
+        run: |
+          [ -n "$NOTION_TOKEN" ] || { echo "::error::Add the NOTION_TOKEN secret first (Settings > Secrets and variables > Actions)"; exit 1; }
+          case "$NOTION_TOKEN" in ntn_*|secret_*) ;; *) echo "::error::NOTION_TOKEN doesn't look like a Notion integration token (ntn_... or secret_...)."; exit 1;; esac
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e .
+      - name: Create or check the tracker
+        run: |
+          if [ "${{ inputs.check }}" = "true" ]; then
+            python -m job_radar init-notion --check
+          else
+            [ -n "${{ inputs.parent_page }}" ] || { echo "::error::Paste the Notion page URL in the parent_page input (Share > Copy link)."; exit 1; }
+            python -m job_radar init-notion --parent "${{ inputs.parent_page }}" --title "${{ inputs.title }}"
+            echo "::notice::Copy the NOTION_DATABASE_ID line above into a repository secret of the same name."
+          fi
