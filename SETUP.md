@@ -14,7 +14,9 @@ your own runs make, and each run has a hard dollar cap.
 1. notion.so/profile/integrations → **New integration** (internal) → copy the token (`ntn_...`).
 2. Make or pick a page the tracker will live under (for example "Job Search"). On that page:
    `•••` → **Connections** → add the integration.
-3. Create the tracker database (prints `NOTION_DATABASE_ID`):
+3. Create the tracker database (prints `NOTION_DATABASE_ID`). In the browser: add the
+   `NOTION_TOKEN` secret (step 5), then Actions → **Init Notion** → Run workflow → paste the
+   page URL. Or locally:
    ```bash
    NOTION_TOKEN=ntn_... python -m job_radar init-notion --parent "<that page's URL>"
    ```

@@ -33,6 +33,7 @@ DevOps, IT, product, design) and lifetime updates, for a one-time $29.
    `NOTION_DATABASE_ID` from step 4.
 4. **Create the tracker**: `python -m job_radar init-notion --parent <a Notion page URL>`
    builds a database with every column the radar writes and prints the id.
+   No local install needed: Actions → **Init Notion** → Run workflow does the same in the browser.
 5. **Run once by hand**: Actions → Radar daily → Run workflow → dry run. Then let the
    schedule take over.
 
