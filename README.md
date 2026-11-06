@@ -2,16 +2,48 @@
 
 **An LLM job-matching agent with a test suite that proves it works.**
 
-Every morning Job Radar pulls new postings from public Greenhouse, Lever, and Ashby job
-boards, screens them with a small model, scores the survivors against my resume with a
-larger one, and files strong matches into my Notion job tracker with three tailored resume
-bullets each. Nothing is ever submitted automatically.
+Every morning Job Radar pulls new postings from public Greenhouse, Lever, Ashby and Workday
+job boards, screens them with a small model, scores the survivors against your resume with a
+larger one, and files strong matches into a Notion job tracker with three tailored resume
+bullets each. Nothing is ever submitted automatically. You read, you decide, you apply.
 
 The interesting part is the evaluation: a pytest suite measures how often the scorer agrees
-with my own hand labels, compares four Claude models on accuracy and cost via the Batch API,
-and uses a judge model to catch any bullet that claims experience I don't have.
+with hand labels, compares four Claude models on accuracy and cost via the Batch API, and
+uses a judge model to catch any bullet that claims experience the resume does not show.
 
 ![CI](https://github.com/oscar-leung/job-radar/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+
+**Free and MIT-licensed.** Fork it, add three secrets, and it runs on GitHub Actions for the
+price of your own API calls (about $1.50 a month on the Lite preset). If you would rather not
+spend an afternoon wiring it up, the
+**[Job Radar Pro Kit](https://oscar-leung.github.io/job-radar/)** is the same engine as a
+private template repo with a 10-minute setup, eight lane packs (QA, AI eval, data, SWE,
+DevOps, IT, product, design) and lifetime updates, for a one-time $29.
+
+## Run it for your own search (free)
+
+1. **Fork** this repo (private forks are fine).
+2. **Describe yourself** in `config/profile.yaml`: where you live, which places you would
+   commute to, your lanes, and a few bullets on how you decide. Copy a lane pack over it if
+   you have the Pro Kit.
+3. **Add secrets** under Settings → Secrets and variables → Actions:
+   `ANTHROPIC_API_KEY`, `NOTION_TOKEN`, `RESUME_MD` (your resume as plain text), and
+   `NOTION_DATABASE_ID` from step 4.
+4. **Create the tracker**: `python -m job_radar init-notion --parent <a Notion page URL>`
+   builds a database with every column the radar writes and prints the id.
+   No local install needed: Actions → **Init Notion** → Run workflow does the same in the browser.
+5. **Run once by hand**: Actions → Radar daily → Run workflow → dry run. Then let the
+   schedule take over.
+
+Cost presets are repo variables, not code: `RADAR_MODEL_SCORE=claude-haiku-5-5` is Lite
+(about 5¢ a run), `claude-opus-5-5` is Best (about $1.50 a run, the numbers below). Every
+run has a hard dollar cap and appends to `costs.csv`. Full steps in [SETUP.md](SETUP.md).
+
+## How the author uses it
+
+The rest of this README is the original build log: one QA engineer's search, real numbers.
 
 ## How it works
 
@@ -123,12 +155,14 @@ CLI for grading any LLM (or any scorer) against human labels, with threshold swe
 bootstrap confidence intervals, model comparison tables and a misses list. It has its own
 tests, a synthetic ticket-triage example, and the Job Radar numbers above with error bars.
 
-## Run it
+## Run it locally
 
 ```bash
 pip install -e ".[dev]"
 cp .env.example .env          # add your keys
 cp your-resume.md data/resume.md
+$EDITOR config/profile.yaml   # who the radar searches for
+python -m job_radar init-notion --parent <Notion page URL>   # once; prints NOTION_DATABASE_ID
 python -m job_radar check-boards
 python -m job_radar run --dry-run --limit 10
 pytest -q                     # offline tests
@@ -139,9 +173,28 @@ python evals/compare_models.py
 
 See [SETUP.md](SETUP.md) for Console, Notion, and GitHub Actions setup.
 
+## Pro Kit, support and sponsoring
+
+- **[Job Radar Pro Kit](https://oscar-leung.github.io/job-radar/)** ($29 one-time): private
+  template repo, 10-minute setup, eight lane packs, Lite preset wired in, lifetime updates.
+  It funds maintenance of this repo.
+- **Questions and bugs:** [GitHub Discussions](https://github.com/oscar-leung/job-radar/discussions)
+  for questions, [Issues](https://github.com/oscar-leung/job-radar/issues) for bugs. Best effort.
+- **Using the free version and want to say thanks?**
+  [Sponsor on GitHub](https://github.com/sponsors/oscar-leung).
+
 ## Design choices
 
 - **Human in the loop.** Matches land as `Not Applied`. A person decides what to apply to.
+  There is no auto-apply and there never will be; mass applications hurt applicants and
+  recruiters alike, and bots in a logged-in session break most job sites' terms.
 - **No fabrication.** The rubric forbids inventing experience, and the judge measures it.
 - **Cost visible by default.** Every run appends to `costs.csv`; reports include cost per run.
-- **Private data stays private.** Resume and labels live in secrets, never in the repo.
+- **Private data stays private.** Resume and labels live in secrets, never in the repo. Nothing
+  is sent to anyone but the Claude API and your own Notion workspace.
+- **Public APIs only.** Greenhouse, Lever, Ashby and Workday publish these job feeds for exactly
+  this purpose. No scraping, no logins, no CAPTCHAs.
+
+## License
+
+MIT. See [LICENSE](LICENSE). The eval toolkit in [`labeleval/`](labeleval/) is MIT as well.

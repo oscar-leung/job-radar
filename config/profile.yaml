@@ -1,0 +1,61 @@
+# Who the radar searches for. Edit this file (or copy a lane pack over it) before the first run.
+# Everything the models read about *you* comes from here and from your resume (data/resume.md
+# or the RESUME_MD secret). The resume never lives in the repo.
+
+name: "Oscar Leung"            # used only to sign cover notes and emails the agent drafts
+home: "Davis, CA"              # where you live; the scorer uses it to map posting locations
+work_country: "US"             # the only country you can work from (remote roles elsewhere are dropped)
+
+# Named places you would commute to. Each becomes a Location value in the tracker.
+# Remote-US, Remote-Global and Other are always added.
+in_area:
+  - "Davis"
+  - "Sacramento"
+  - "Yolo"
+  - "Bay Area"
+
+# Lanes where you would take a fully remote role that is open worldwide (not US-only).
+global_remote_ok_lanes:
+  - "QA/SDET"
+  - "AI Eval"
+
+# Job categories the scorer sorts matches into. Keep "Other" last.
+lanes: ["QA/SDET", "AI Eval", "SWE", "Data", "IT Spec", "Research", "Other"]
+
+# Which resume variant the scorer may recommend. Use the names you give your resume files.
+resume_versions: ["QA-SDET", "AI-Eval", "SWE", "General"]
+
+# How you decide. The scorer is calibrated against this text, so write it the way you would
+# brief a recruiter who screens for you. Markdown bullets, plain language.
+lane_guidance: |
+  - They apply to the WORK, not the title. Senior, Staff, or Lead titles are fine when the job
+    is QA, test automation, quality engineering, test infrastructure, automation engineering,
+    AI/LLM evaluation, red-teaming, or data annotation. Do not drop the score for seniority alone.
+  - Their other target lanes count too and should be scored on real fit, not penalized as
+    off-lane: data analysis (SQL, data validation, reporting), IT support and systems
+    administration, release/build/DevOps work, and trust-and-safety or data-quality operations.
+  - Adjacent automation and quality roles count: IT/systems automation, quality or testing
+    analyst, supplier/systems test, compliance testing, eval-focused research or product roles.
+  - Score low (Skip) for: internships, people-management-only roles, product/program management
+    without hands-on testing or automation, marketing, ads ranking, sales, and roles whose core
+    is hardware manufacturing or a domain with no testing/automation component.
+
+# Which postings deserve a model call at all. The filter model reads this list.
+relevant_work: |
+  - Software QA, test automation, SDET, quality engineering, release/test infrastructure
+  - AI/LLM evaluation, red-teaming, model QA, data annotation/labeling quality, AI trainer work
+  - State or public-sector analyst roles where testing, QA, or systems analysis is central
+  - Data analysis / analytics (data analyst, business or systems analyst, analytics engineer)
+  - IT support, systems administration, technical support engineering
+  - Release, build, DevOps, or site reliability engineering
+  - Trust & safety operations, content review quality, data quality/operations
+
+# Optional. When present these replace the title_include / title_exclude / location_include
+# lists in config/companies.yaml, so a lane pack is one file. Regex, case-insensitive.
+# title_include: []
+# title_exclude: []
+# location_include: []
+
+# Optional. The Notion database the radar writes to. The NOTION_DATABASE_ID environment
+# variable (or GitHub secret) wins when both are set. `python -m job_radar init-notion` prints one.
+notion_database_id: "d2c0fa46a231491cbe754cbf5abf272e"

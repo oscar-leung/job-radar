@@ -25,11 +25,16 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}   # blank = config/profile.yaml
       RESUME_MD: ${{ secrets.RESUME_MD }}
       REQUIRED: ANTHROPIC_API_KEY NOTION_TOKEN RESUME_MD
       RADAR_MAX_SCORED: ${{ inputs.max_scored || '40' }}
       RADAR_MAX_RUN_USD: ${{ inputs.max_usd || '1.50' }}
       RADAR_FIT_THRESHOLD: ${{ inputs.fit_threshold || '50' }}
+      # Cost preset without touching code: Settings > Secrets and variables > Actions > Variables.
+      # Lite = claude-haiku-5-5 (about 1/30th the cost), Best = claude-opus-5-5 (this repo's default).
+      RADAR_MODEL_SCORE: ${{ vars.RADAR_MODEL_SCORE || 'claude-opus-5-5' }}
+      RADAR_MODEL_JUDGE: ${{ vars.RADAR_MODEL_JUDGE || 'claude-opus-5-5' }}
     steps:
       - name: Check secrets are set
         run: |

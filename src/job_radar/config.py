@@ -5,6 +5,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .profile import PROFILE
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -31,9 +33,8 @@ class Settings:
     max_scored: int = int(os.getenv("RADAR_MAX_SCORED", "60"))
     max_run_usd: float = float(os.getenv("RADAR_MAX_RUN_USD", "3.00"))
     notion_token: str = os.getenv("NOTION_TOKEN", "").strip()
-    notion_database_id: str = os.getenv(
-        "NOTION_DATABASE_ID", "d2c0fa46a231491cbe754cbf5abf272e"
-    )
+    # Env/secret wins; otherwise config/profile.yaml; `init-notion` prints a fresh one.
+    notion_database_id: str = (os.getenv("NOTION_DATABASE_ID") or PROFILE.notion_database_id).strip()
     resume_path: Path = Path(os.getenv("RADAR_RESUME_PATH", ROOT / "data" / "resume.md"))
     companies_path: Path = ROOT / "config" / "companies.yaml"
     prompts_dir: Path = ROOT / "prompts"

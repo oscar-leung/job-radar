@@ -8,15 +8,17 @@ claude -p "<task>" --model claude-opus-5-5
 ```
 
 ## What this repo is
-A daily agent that pulls QA/SDET and AI-eval postings from public Greenhouse/Lever/Ashby
-APIs, filters with Haiku, scores fit with Sonnet against the owner's resume, and writes
-matches into the Notion "Master Job Tracker — Live" as `Status = Not Applied`. A pytest
+A daily agent that pulls postings from public Greenhouse/Lever/Ashby/Workday APIs, filters
+with Haiku, scores fit with Opus against the user's resume, and writes matches into a Notion
+tracker as `Status = Not Applied`. Who it searches for lives in `config/profile.yaml`; the
+same code serves the author and Pro Kit buyers (MIT core, paid template repo). A pytest
 eval suite measures scoring accuracy against hand labels and checks bullets for fabrication.
 
 ## Layout
+- `src/job_radar/profile.py` — config/profile.yaml: candidate, places, lanes, prompt placeholders
 - `src/job_radar/ingest.py` — ATS fetchers, HTML cleanup, keyword prefilter
 - `src/job_radar/score.py` — forced-tool structured output, cached system prompt
-- `src/job_radar/notion_out.py` — exact tracker column mapping + dedupe on External ID
+- `src/job_radar/notion_out.py` — tracker column mapping, dedupe on External ID, `init-notion` bootstrap
 - `src/job_radar/cost.py` — per-call cost + hard per-run budget
 - `src/job_radar/sweep.py` — Batch API cover-note drafts for the backlog
 - `evals/` — offline unit tests, live eval, model comparison, labeling helper
@@ -29,6 +31,8 @@ eval suite measures scoring accuracy against hand labels and checks bullets for 
 4. Every model call must go through `CostMeter`; keep `RADAR_MAX_RUN_USD` enforced.
 5. Report only real eval numbers in the README — no placeholder results presented as real.
 6. `pytest -q` (offline) must pass before every commit.
+7. Nothing personal in code or prompts: names, places and lanes come from `config/profile.yaml`
+   via `{{PLACEHOLDERS}}`. `evals/test_profile.py` fails on a leftover placeholder.
 
 ## Good next tasks
 - Add a `--since` filter using posting dates where the ATS exposes them
